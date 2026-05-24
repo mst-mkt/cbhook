@@ -1,0 +1,10 @@
+import {
+  "moonbitlang/async",
+  "mst-mkt/clipboard",
+}
+
+supported_targets = "+native"
+
+options(
+  "is-main": true,
+)
