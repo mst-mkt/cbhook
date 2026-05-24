@@ -1,0 +1,6 @@
+.direnv/
+result
+target/
+.claude/skills/
+_build/
+.mooncakes/
