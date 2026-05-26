@@ -204,10 +204,8 @@ async fn service_install(config : String?) -> Unit raise {
       let file = "\{dir}/\{UNIT_FILENAME}"
       let exec_start = "\"\{exe}\" watch --config \"\{config_path}\""
       write_unit(dir, file, systemd_unit(exec_start, display_env_of(@env.get_env_var)))
-      println("cbhook: installed \{file}")
-      println(
-        "cbhook: enable with: systemctl --user enable --now \{UNIT_FILENAME}",
-      )
+      log_info("installed \{file}")
+      log_info("enable with: systemctl --user enable --now \{UNIT_FILENAME}")
     }
     Macos => {
       let home = match nonempty(@env.get_env_var("HOME")) {
@@ -217,8 +215,8 @@ async fn service_install(config : String?) -> Unit raise {
       let dir = "\{home}/Library/LaunchAgents"
       let file = "\{dir}/\{SERVICE_LABEL}.plist"
       write_unit(dir, file, launchd_plist(SERVICE_LABEL, exe, config_path))
-      println("cbhook: installed \{file}")
-      println("cbhook: load with: launchctl load \{file}")
+      log_info("installed \{file}")
+      log_info("load with: launchctl load \{file}")
     }
   }
 }

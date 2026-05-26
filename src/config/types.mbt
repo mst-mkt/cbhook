@@ -1,6 +1,14 @@
 ///|
 pub(all) struct Config {
   hooks : Array[Hook]
+  log_level : LogLevel?
+} derive(Eq, Debug)
+
+///|
+pub(all) enum LogLevel {
+  Debug
+  Info
+  Warn
 } derive(Eq, Debug)
 
 ///|

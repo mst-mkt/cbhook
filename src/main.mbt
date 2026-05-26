@@ -28,6 +28,21 @@ fn error_message(e : Error) -> String {
 }
 
 ///|
+fn std_options() -> Array[@admiral.OptionDef] {
+  [
+    @admiral.string("config", short='c', description="Path to the config file (.json)"),
+    @admiral.bool("verbose", short='v', description="Verbose (debug) logging"),
+    @admiral.bool("quiet", short='q', description="Quiet (warnings only)"),
+  ]
+}
+
+///|
+fn select_command(pending : Ref[Pending?], ctx : @admiral.Context, p : Pending) -> Unit {
+  set_flag_level(ctx.get_bool("verbose"), ctx.get_bool("quiet"))
+  pending.val = Some(p)
+}
+
+///|
 fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
   @admiral.cli(
     name="cbhook",
@@ -37,29 +52,17 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
       @admiral.command(
         name="watch",
         description="Watch the clipboard and apply hooks on each change.",
-        options=[
-          @admiral.string(
-            "config",
-            short='c',
-            description="Path to the config file (.json)",
-          ),
-        ],
+        options=std_options(),
         run=Some(fn(ctx) {
-          pending.val = Some(Watch(config=ctx.get_string("config")))
+          select_command(pending, ctx, Watch(config=ctx.get_string("config")))
         }),
       ),
       @admiral.command(
         name="check",
         description="Validate the config and exit (no watching).",
-        options=[
-          @admiral.string(
-            "config",
-            short='c',
-            description="Path to the config file (.json)",
-          ),
-        ],
+        options=std_options(),
         run=Some(fn(ctx) {
-          pending.val = Some(Check(config=ctx.get_string("config")))
+          select_command(pending, ctx, Check(config=ctx.get_string("config")))
         }),
       ),
       @admiral.command(
@@ -74,15 +77,9 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
           @admiral.command(
             name="install",
             description="Install a systemd user unit (Linux) or launchd agent (macOS).",
-            options=[
-              @admiral.string(
-                "config",
-                short='c',
-                description="Path to the config file (.json)",
-              ),
-            ],
+            options=std_options(),
             run=Some(fn(ctx) {
-              pending.val = Some(Service(config=ctx.get_string("config")))
+              select_command(pending, ctx, Service(config=ctx.get_string("config")))
             }),
           ),
         ],
@@ -92,35 +89,23 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
 }
 
 ///|
+async fn fail_exit(e : Error) -> Unit {
+  log_warn(error_message(e))
+  c_exit(1)
+}
+
+///|
 async fn main {
   let pending : Ref[Pending?] = { val: None }
   try build_cli(pending).run() catch {
-    e => {
-      println("cbhook: \{error_message(e)}")
-      c_exit(1)
-    }
+    e => fail_exit(e)
   }
   match pending.val {
-    Some(Watch(config~)) =>
-      try watch(config) catch {
-        e => {
-          println("cbhook: \{error_message(e)}")
-          c_exit(1)
-        }
-      }
-    Some(Check(config~)) =>
-      try check(config) catch {
-        e => {
-          println("cbhook: \{error_message(e)}")
-          c_exit(1)
-        }
-      }
+    Some(Watch(config~)) => try watch(config) catch { e => fail_exit(e) }
+    Some(Check(config~)) => try check(config) catch { e => fail_exit(e) }
     Some(Service(config~)) =>
       try service_install(config) catch {
-        e => {
-          println("cbhook: \{error_message(e)}")
-          c_exit(1)
-        }
+        e => fail_exit(e)
       }
     None => ()
   }

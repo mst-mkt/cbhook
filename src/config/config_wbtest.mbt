@@ -35,8 +35,22 @@ test "minimal replace hook decodes to the expected Config" {
           action: Replace(pattern="a", replacement="b", flags=None),
         },
       ],
+      log_level: None,
     },
   )
+}
+
+///|
+test "log_level decodes when present and rejects unknown values" {
+  let ok =
+    #|{ "hooks": [], "log_level": "debug" }
+  @test.assert_eq(parse(ok).log_level, Some(Debug))
+  let absent =
+    #|{ "hooks": [] }
+  @test.assert_eq(parse(absent).log_level, None)
+  let bad =
+    #|{ "hooks": [], "log_level": "loud" }
+  @test.assert_eq(decode_err(bad).contains("config.log_level"), true)
 }
 
 ///|
@@ -547,4 +561,14 @@ test "match property is the matcher schema" {
     get_key(get_key(get_key(m, "properties"), "flags"), "type"),
     "string".to_json(),
   )
+}
+
+///|
+test "log_level property is an enum and stays optional" {
+  let props = get_key(schema(), "properties")
+  assert_json(
+    get_key(get_key(props, "log_level"), "enum"),
+    ["debug", "info", "warn"].to_json(),
+  )
+  assert_json(get_key(schema(), "required"), ["hooks"].to_json())
 }

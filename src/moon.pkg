@@ -3,6 +3,7 @@ import {
   "moonbitlang/async/fs",
   "moonbitlang/async/process",
   "moonbitlang/async/signal",
+  "moonbitlang/async/stdio",
   "moonbitlang/core/env",
   "moonbitlang/core/encoding/utf8",
   "mst-mkt/clipboard",

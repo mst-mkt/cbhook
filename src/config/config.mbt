@@ -80,9 +80,20 @@ fn hook_schema() -> Schema[Hook] {
 }
 
 ///|
+fn log_level_schema() -> Schema[LogLevel] {
+  enum_schema(["debug", "info", "warn"], s => match s {
+    "debug" => Some(Debug)
+    "info" => Some(Info)
+    "warn" => Some(Warn)
+    _ => None
+  })
+}
+
+///|
 fn config_schema() -> Schema[Config] {
-  pure(fn(hooks) { Config::{ hooks } })
+  pure(fn(hooks) { fn(log_level) { Config::{ hooks, log_level } } })
   .apply(required_field("hooks", array_schema(hook_schema())))
+  .apply(optional_field("log_level", log_level_schema()))
   .build()
 }
 

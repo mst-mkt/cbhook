@@ -22,14 +22,16 @@ async fn load_compiled(config : String?) -> @engine.Compiled raise {
   let source = try @fs.read_file(path).text() catch {
     _ => raise @config.ConfigError("cannot read config file: \{path}")
   }
-  @engine.compile(@config.parse(source))
+  let cfg = @config.parse(source)
+  apply_config_level(cfg.log_level)
+  @engine.compile(cfg)
 }
 
 ///|
 async fn check(config : String?) -> Unit raise {
   let compiled = load_compiled(config)
-  compiled.notices().each((n) => println("cbhook: notice: \{n}"))
-  println("cbhook: config is valid")
+  log_notices(compiled.notices()[:])
+  log_info("config is valid")
 }
 
 ///|
@@ -46,9 +48,10 @@ async fn run_pipeline(
   last_written : Ref[String?],
   text : String,
 ) -> Unit {
+  log_debug("clipboard changed; applying hooks")
   let result = try decide(last_written.val, text, compiled) catch {
     e => {
-      println("cbhook: hook failed: \{error_message(e)}")
+      log_warn("hook failed: \{error_message(e)}")
       None
     }
   }
@@ -56,7 +59,7 @@ async fn run_pipeline(
     Some(r) => {
       last_written.val = Some(r)
       try clipboard.set_text(r) catch {
-        e => println("cbhook: write failed: \{error_message(e)}")
+        e => log_warn("write failed: \{error_message(e)}")
       }
     }
     None => ()
@@ -85,9 +88,9 @@ async fn drain(
 ///|
 async fn watch(config : String?) -> Unit raise {
   let compiled = load_compiled(config)
-  compiled.notices().each((n) => println("cbhook: notice: \{n}"))
+  log_notices(compiled.notices()[:])
   @signal.set_global_cancellation_signals([@signal.SIGINT, @signal.SIGTERM])
-  println("cbhook: watching clipboard (Ctrl-C to stop)")
+  log_info("watching clipboard (Ctrl-C to stop)")
   try
     @async.with_task_group(group => {
       let clipboard = @clipboard.Clipboard::new()
@@ -112,7 +115,7 @@ async fn watch(config : String?) -> Unit raise {
   catch {
     e =>
       if @async.is_cancellation_error(e) {
-        println("cbhook: stopped")
+        log_info("stopped")
       } else {
         raise e
       }
