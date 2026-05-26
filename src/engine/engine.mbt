@@ -1,20 +1,29 @@
 ///|
-pub(all) enum CompiledAction {
+pub enum CompiledAction {
   CReplace(@regexp.Regexp, String)
-  CPassthrough(String)
+  CPipe(Array[String], Int, @config.OnError)
+  CExec(Array[String], Int, @config.OnError)
 }
 
 ///|
-pub(all) struct CompiledHook {
+pub struct CompiledHook {
   matcher : @regexp.Regexp?
   action : CompiledAction
 }
 
 ///|
-pub(all) struct Compiled {
+pub struct Compiled {
   hooks : Array[CompiledHook]
-  notices : Array[String]
+  notice_lines : Array[String]
 }
+
+///|
+pub fn Compiled::notices(self : Compiled) -> Array[String] {
+  self.notice_lines
+}
+
+///|
+let default_timeout_ms : Int = 5000
 
 ///|
 fn compile_re(pattern : String, flags : String?) -> @regexp.Regexp raise {
@@ -79,9 +88,16 @@ fn compile_action(
         Ok(re) => Ok(CReplace(re, replacement))
         Err(e) => Err(e)
       }
-    Pipe(..) => Ok(CPassthrough("pipe"))
-    Exec(..) => Ok(CPassthrough("exec"))
+    Pipe(run~, timeout_ms~, on_error~) =>
+      Ok(CPipe(run, default_timeout(timeout_ms), on_error))
+    Exec(run~, timeout_ms~, on_error~) =>
+      Ok(CExec(run, default_timeout(timeout_ms), on_error))
   }
+}
+
+///|
+fn default_timeout(timeout_ms : Int?) -> Int {
+  timeout_ms.unwrap_or(default_timeout_ms)
 }
 
 ///|
@@ -131,10 +147,6 @@ fn pattern_is_anchored(pattern : String) -> Bool {
 fn collect_notices(config : @config.Config) -> Array[String] {
   config.hooks
   .mapi((i, h) => match h.action {
-    Pipe(..) =>
-      Some("config.hooks[\{i}].action: pipe is not yet implemented (passthrough)")
-    Exec(..) =>
-      Some("config.hooks[\{i}].action: exec is not yet implemented (passthrough)")
     Replace(pattern~, ..) =>
       if pattern_is_anchored(pattern) {
         Some(
@@ -143,6 +155,7 @@ fn collect_notices(config : @config.Config) -> Array[String] {
       } else {
         None
       }
+    _ => None
   })
   .fold(init=[], fn(acc, o) {
     match o {
@@ -157,13 +170,60 @@ pub fn compile(config : @config.Config) -> Compiled raise @config.ConfigError {
   let results = config.hooks.mapi((i, h) =>
     compile_hook(h, "config.hooks[\{i}]"))
   match sequence(results) {
-    Ok(hooks) => { hooks, notices: collect_notices(config) }
+    Ok(hooks) => { hooks, notice_lines: collect_notices(config) }
     Err(es) => raise @config.ConfigError(join_nl(es))
   }
 }
 
 ///|
-fn apply_hook(hook : CompiledHook, text : String) -> String {
+fn cmd_name(run : Array[String]) -> String {
+  match run {
+    [c, ..] => c
+    [] => "command"
+  }
+}
+
+///|
+fn describe(e : Error) -> String {
+  match e {
+    @action.ActionError(m) => m
+    _ => e.to_string()
+  }
+}
+
+///|
+fn on_failure(
+  on_error : @config.OnError,
+  ctx : String,
+  text : String,
+  e : Error,
+) -> String raise {
+  match on_error {
+    @config.Skip => text
+    @config.Abort => raise @action.ActionError("\{ctx}: \{describe(e)}")
+  }
+}
+
+///|
+/// Run `body` under the hook's timeout. A timeout of 0 means no limit.
+async fn with_limit(
+  timeout : Int,
+  cmd : String,
+  body : async () -> String raise,
+) -> String raise {
+  if timeout == 0 {
+    body()
+  } else {
+    @async.with_timeout(
+      timeout,
+      body,
+      error=@action.ActionError("\{cmd} timed out after \{timeout}ms"),
+    )
+  }
+}
+
+///|
+async fn apply_hook(hook : CompiledHook, text : String, ctx : String) -> String raise {
   let matches = match hook.matcher {
     Some(re) => re.execute(text).matched()
     None => true
@@ -171,7 +231,17 @@ fn apply_hook(hook : CompiledHook, text : String) -> String {
   if matches {
     match hook.action {
       CReplace(re, template) => @action.replace(re, template, text)
-      CPassthrough(_) => text
+      CPipe(run, timeout, on_error) =>
+        try with_limit(timeout, cmd_name(run), () => @action.run_pipe(run[:], text)) catch {
+          e => on_failure(on_error, ctx, text, e)
+        }
+      CExec(run, timeout, on_error) =>
+        try with_limit(timeout, cmd_name(run), () => {
+          @action.run_exec(run[:], text)
+          text
+        }) catch {
+          e => on_failure(on_error, ctx, text, e)
+        }
     }
   } else {
     text
@@ -179,6 +249,19 @@ fn apply_hook(hook : CompiledHook, text : String) -> String {
 }
 
 ///|
-pub fn run(compiled : Compiled, text : String) -> String {
-  compiled.hooks.fold(init=text, fn(acc, h) { apply_hook(h, acc) })
+async fn apply_all(
+  hooks : ArrayView[CompiledHook],
+  text : String,
+  i : Int,
+) -> String raise {
+  match hooks {
+    [] => text
+    [h, .. rest] =>
+      apply_all(rest, apply_hook(h, text, "config.hooks[\{i}].action"), i + 1)
+  }
+}
+
+///|
+pub async fn run(compiled : Compiled, text : String) -> String raise {
+  apply_all(compiled.hooks[:], text, 0)
 }

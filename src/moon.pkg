@@ -4,6 +4,7 @@ import {
   "moonbitlang/core/env",
   "mst-mkt/clipboard",
   "mst-mkt/cbhook/config",
+  "mst-mkt/cbhook/action",
   "mst-mkt/cbhook/engine",
   "mizchi/admiral",
   "moonbitlang/core/test",

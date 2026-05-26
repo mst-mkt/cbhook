@@ -10,7 +10,8 @@ enum Pending {
 ///|
 fn after_fail_marker(m : String) -> String {
   match m.split(" FAILED: ").to_array() {
-    [_loc, last] => last.to_owned()
+    [_loc, first, .. rest] =>
+      rest.fold(init=first.to_owned(), fn(acc, p) { acc + " FAILED: " + p.to_owned() })
     _ => m
   }
 }
@@ -19,6 +20,7 @@ fn after_fail_marker(m : String) -> String {
 fn error_message(e : Error) -> String {
   match e {
     @config.ConfigError(m) => m
+    @action.ActionError(m) => m
     Failure::Failure(m) => after_fail_marker(m)
     _ => e.to_string()
   }

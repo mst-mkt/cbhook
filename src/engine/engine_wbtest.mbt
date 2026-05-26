@@ -1,5 +1,5 @@
 ///|
-fn run_cfg(json : String, text : String) -> String raise {
+async fn run_cfg(json : String, text : String) -> String raise {
   run(compile(@config.parse(json)), text)
 }
 
@@ -15,7 +15,7 @@ fn compile_err(json : String) -> String {
 }
 
 ///|
-test "replace action is wired through the pipeline" {
+async test "replace action is wired through the pipeline" {
   let json =
     #|{
     #|  "hooks": [
@@ -26,7 +26,7 @@ test "replace action is wired through the pipeline" {
 }
 
 ///|
-test "matcher gates the hook (no match = unchanged)" {
+async test "matcher gates the hook (no match = unchanged)" {
   let json =
     #|{
     #|  "hooks": [
@@ -40,7 +40,7 @@ test "matcher gates the hook (no match = unchanged)" {
 }
 
 ///|
-test "matcher matches = hook applies" {
+async test "matcher matches = hook applies" {
   let json =
     #|{
     #|  "hooks": [
@@ -54,7 +54,7 @@ test "matcher matches = hook applies" {
 }
 
 ///|
-test "pipeline applies hooks in order" {
+async test "pipeline applies hooks in order" {
   let json =
     #|{
     #|  "hooks": [
@@ -66,27 +66,126 @@ test "pipeline applies hooks in order" {
 }
 
 ///|
-test "empty hooks leave text unchanged" {
+async test "empty hooks leave text unchanged" {
   let json =
     #|{ "hooks": [] }
   @test.assert_eq(run_cfg(json, "anything"), "anything")
 }
 
 ///|
-test "pipe/exec are passthrough with a notice" {
+async test "pipe transforms text through a command's stdout" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "pipe", "run": ["jq"] } }
+    #|    { "action": { "type": "pipe", "run": ["tr", "[:lower:]", "[:upper:]"] } }
     #|  ]
     #|}
-  let compiled = compile(@config.parse(json))
-  @test.assert_eq(run(compiled, "untouched"), "untouched")
-  @test.assert_eq(compiled.notices.length(), 1)
-  @test.assert_eq(
-    compiled.notices[0].contains("pipe is not yet implemented"),
-    true,
-  )
+  @test.assert_eq(run_cfg(json, "hello"), "HELLO")
+}
+
+///|
+async test "exec runs a command but leaves the text unchanged" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "exec", "run": ["true"] } }
+    #|  ]
+    #|}
+  @test.assert_eq(run_cfg(json, "untouched"), "untouched")
+}
+
+///|
+async test "on_error skip keeps the text when the command fails" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "pipe", "run": ["false"], "on_error": "skip" } }
+    #|  ]
+    #|}
+  @test.assert_eq(run_cfg(json, "kept"), "kept")
+}
+
+///|
+async test "on_error abort propagates the failure" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "pipe", "run": ["false"], "on_error": "abort" } }
+    #|  ]
+    #|}
+  let raised = try {
+    run_cfg(json, "x") |> ignore
+    false
+  } catch {
+    _ => true
+  }
+  @test.assert_eq(raised, true)
+}
+
+///|
+async test "a slow command is aborted by the timeout" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "pipe", "run": ["sleep", "5"], "timeout_ms": 30, "on_error": "abort" } }
+    #|  ]
+    #|}
+  let msg = try {
+    run_cfg(json, "x") |> ignore
+    "no error"
+  } catch {
+    @action.ActionError(m) => m
+    e => "other: \{e}"
+  }
+  @test.assert_eq(msg.contains("timed out"), true)
+}
+
+///|
+async test "timeout_ms of 0 means no limit" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "pipe", "run": ["cat"], "timeout_ms": 0 } }
+    #|  ]
+    #|}
+  @test.assert_eq(run_cfg(json, "kept"), "kept")
+}
+
+///|
+async test "abort over a spawn failure still carries the hook index" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "pipe", "run": ["cbhook-no-such-command-xyz"], "on_error": "abort" } }
+    #|  ]
+    #|}
+  let msg = try {
+    run_cfg(json, "x") |> ignore
+    "no error"
+  } catch {
+    @action.ActionError(m) => m
+    e => "other: \{e}"
+  }
+  @test.assert_eq(msg.contains("config.hooks[0].action"), true)
+}
+
+///|
+async test "abort error carries the hook index" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "replace", "pattern": "a", "with": "b" } },
+    #|    { "action": { "type": "pipe", "run": ["false"], "on_error": "abort" } }
+    #|  ]
+    #|}
+  let msg = try {
+    run_cfg(json, "a") |> ignore
+    "no error"
+  } catch {
+    @action.ActionError(m) => m
+    e => "other: \{e}"
+  }
+  @test.assert_eq(msg.contains("config.hooks[1].action"), true)
 }
 
 ///|
@@ -97,11 +196,11 @@ test "replace-only config has no notices" {
     #|    { "action": { "type": "replace", "pattern": "a", "with": "b" } }
     #|  ]
     #|}
-  @test.assert_eq(compile(@config.parse(json)).notices.length(), 0)
+  @test.assert_eq(compile(@config.parse(json)).notices().length(), 0)
 }
 
 ///|
-test "mixed pipe and exec notices keep order and index" {
+test "pipe and exec produce no notices" {
   let json =
     #|{
     #|  "hooks": [
@@ -109,16 +208,7 @@ test "mixed pipe and exec notices keep order and index" {
     #|    { "action": { "type": "exec", "run": ["b"] } }
     #|  ]
     #|}
-  let compiled = compile(@config.parse(json))
-  @test.assert_eq(compiled.notices.length(), 2)
-  @test.assert_eq(
-    compiled.notices[0].contains("config.hooks[0].action: pipe"),
-    true,
-  )
-  @test.assert_eq(
-    compiled.notices[1].contains("config.hooks[1].action: exec"),
-    true,
-  )
+  @test.assert_eq(compile(@config.parse(json)).notices().length(), 0)
 }
 
 ///|
@@ -130,8 +220,8 @@ test "start-anchor pattern emits an anchored notice" {
     #|  ]
     #|}
   let compiled = compile(@config.parse(json))
-  @test.assert_eq(compiled.notices.length(), 1)
-  @test.assert_eq(compiled.notices[0].contains("anchored pattern"), true)
+  @test.assert_eq(compiled.notices().length(), 1)
+  @test.assert_eq(compiled.notices()[0].contains("anchored pattern"), true)
 }
 
 ///|
@@ -143,7 +233,7 @@ test "end-anchor pattern emits an anchored notice" {
     #|  ]
     #|}
   @test.assert_eq(
-    compile(@config.parse(json)).notices[0].contains("anchored pattern"),
+    compile(@config.parse(json)).notices()[0].contains("anchored pattern"),
     true,
   )
 }
@@ -157,7 +247,7 @@ test "word-boundary pattern emits an anchored notice" {
     #|  ]
     #|}
   @test.assert_eq(
-    compile(@config.parse(json)).notices[0].contains("anchored pattern"),
+    compile(@config.parse(json)).notices()[0].contains("anchored pattern"),
     true,
   )
 }
@@ -170,7 +260,7 @@ test "negated char class is not treated as anchored" {
     #|    { "action": { "type": "replace", "pattern": "[^a]", "with": "X" } }
     #|  ]
     #|}
-  @test.assert_eq(compile(@config.parse(json)).notices.length(), 0)
+  @test.assert_eq(compile(@config.parse(json)).notices().length(), 0)
 }
 
 ///|

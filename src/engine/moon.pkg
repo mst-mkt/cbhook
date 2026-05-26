@@ -1,5 +1,6 @@
 import {
   "moonbitlang/regexp",
+  "moonbitlang/async",
   "mst-mkt/cbhook/config",
   "mst-mkt/cbhook/action",
   "moonbitlang/core/test",
