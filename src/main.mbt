@@ -1,22 +1,97 @@
-// Minimal cbhook scaffold: watch the system clipboard and echo every change
-// to stdout. The rule engine, config loading and actions come later — this just
-// proves the toolchain and the clipboard watch loop work end to end.
+///|
+extern "c" fn c_exit(code : Int) -> Unit = "exit"
 
 ///|
-async fn main {
-  try watch_and_echo() catch {
-    err => println("cbhook: error: \{err}")
+enum Pending {
+  Watch(config~ : String?)
+  Check(config~ : String?)
+}
+
+///|
+fn after_fail_marker(m : String) -> String {
+  match m.split(" FAILED: ").to_array() {
+    [_loc, last] => last.to_owned()
+    _ => m
   }
 }
 
 ///|
-async fn watch_and_echo() -> Unit raise {
-  @async.with_task_group(group => {
-    let clipboard = @clipboard.Clipboard::new()
-    println("cbhook: watching clipboard (Ctrl-C to stop)")
-    // `watch` spawns a background poll task into `group`; the task group keeps
-    // running until that task stops, so this blocks like a daemon.
-    let _handle = clipboard.watch(group, text => println("changed: \{text}"))
+fn error_message(e : Error) -> String {
+  match e {
+    @config.ConfigError(m) => m
+    Failure::Failure(m) => after_fail_marker(m)
+    _ => e.to_string()
+  }
+}
 
-  })
+///|
+fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
+  @admiral.cli(
+    name="cbhook",
+    version="0.1.0",
+    description="Watch the clipboard and transform it with hooks.",
+    commands=[
+      @admiral.command(
+        name="watch",
+        description="Watch the clipboard and apply hooks on each change.",
+        options=[
+          @admiral.string(
+            "config",
+            short='c',
+            description="Path to the config file (.json)",
+          ),
+        ],
+        run=Some(fn(ctx) {
+          pending.val = Some(Watch(config=ctx.get_string("config")))
+        }),
+      ),
+      @admiral.command(
+        name="check",
+        description="Validate the config and exit (no watching).",
+        options=[
+          @admiral.string(
+            "config",
+            short='c',
+            description="Path to the config file (.json)",
+          ),
+        ],
+        run=Some(fn(ctx) {
+          pending.val = Some(Check(config=ctx.get_string("config")))
+        }),
+      ),
+      @admiral.command(
+        name="schema",
+        description="Print the config JSON Schema (draft-07).",
+        run=Some(fn(_ctx) { println(@config.schema_json()) }),
+      ),
+    ],
+  )
+}
+
+///|
+async fn main {
+  let pending : Ref[Pending?] = { val: None }
+  try build_cli(pending).run() catch {
+    e => {
+      println("cbhook: \{error_message(e)}")
+      c_exit(1)
+    }
+  }
+  match pending.val {
+    Some(Watch(config~)) =>
+      try watch(config) catch {
+        e => {
+          println("cbhook: \{error_message(e)}")
+          c_exit(1)
+        }
+      }
+    Some(Check(config~)) =>
+      try check(config) catch {
+        e => {
+          println("cbhook: \{error_message(e)}")
+          c_exit(1)
+        }
+      }
+    None => ()
+  }
 }

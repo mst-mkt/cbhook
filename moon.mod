@@ -6,6 +6,7 @@ import {
   "moonbitlang/async@0.19.1",
   "mst-mkt/clipboard@0.1.1",
   "moonbitlang/regexp@0.3.5",
+  "mizchi/admiral@0.1.0",
 }
 
 preferred_target = "native"
