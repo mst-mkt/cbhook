@@ -72,6 +72,11 @@
       devShells = forAllSystems (
         pkgs:
         let
+          toolchain = [
+            pkgs.moonbit-bin.moonbit.latest
+            pkgs.xclip
+            pkgs.wl-clipboard
+          ];
           agentLib = agent-skills.lib.agent-skills;
           sources = {
             moonbit = {
@@ -103,13 +108,10 @@
         in
         {
           default = pkgs.mkShell {
-            packages = [
-              pkgs.moonbit-bin.moonbit.latest
-              pkgs.xclip
-              pkgs.wl-clipboard
-            ];
+            packages = toolchain;
             shellHook = agentLib.mkShellHook { inherit pkgs bundle targets; };
           };
+          ci = pkgs.mkShell { packages = toolchain; };
         }
       );
     };
