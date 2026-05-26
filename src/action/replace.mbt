@@ -1,6 +1,6 @@
 ///|
 fn is_digit(c : Char) -> Bool {
-  c >= '0' && c <= '9'
+  c is '0'..='9'
 }
 
 ///|
@@ -10,10 +10,7 @@ fn digit_val(c : Char) -> Int {
 
 ///|
 fn group_str(res : @regexp.MatchResult, i : Int) -> String {
-  match res.get(i) {
-    Some(v) => v.to_owned()
-    None => ""
-  }
+  res.get(i).map(v => v.to_owned()).unwrap_or("")
 }
 
 ///|
@@ -62,10 +59,7 @@ fn lookup(res : @regexp.MatchResult, key : String) -> String {
   if all_digits(key) {
     group_str(res, parse_digits(key))
   } else {
-    match res.groups().get(key) {
-      Some(v) => v.to_owned()
-      None => ""
-    }
+    res.groups().get(key).map(v => v.to_owned()).unwrap_or("")
   }
 }
 
@@ -79,12 +73,9 @@ fn expand(template : String, res : @regexp.MatchResult) -> String {
         let (key, after) = take_until(rest, '}')
         go(after, acc + lookup(res, key))
       }
-      ['$', d, .. rest] =>
-        if is_digit(d) {
-          go(rest, acc + group_str(res, digit_val(d)))
-        } else {
-          go(rest, acc + "$" + d.to_string())
-        }
+      ['$', '0'..='9' as d, .. rest] =>
+        go(rest, acc + group_str(res, digit_val(d)))
+      ['$', d, .. rest] => go(rest, acc + "$" + d.to_string())
       ['$'] => acc + "$"
       [c, .. rest] => go(rest, acc + c.to_string())
     }

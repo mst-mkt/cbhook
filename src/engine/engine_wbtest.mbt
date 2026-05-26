@@ -1,6 +1,6 @@
 ///|
 async fn run_cfg(json : String, text : String) -> String raise {
-  run(compile(@config.parse(json)), text)
+  compile(@config.parse(json)).run(text)
 }
 
 ///|
@@ -261,6 +261,59 @@ test "negated char class is not treated as anchored" {
     #|  ]
     #|}
   @test.assert_eq(compile(@config.parse(json)).notices().length(), 0)
+}
+
+///|
+test "escaped anchors are literal; word boundary is not" {
+  let lit_caret =
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "\\^a", "with": "x" } } ] }
+  @test.assert_eq(compile(@config.parse(lit_caret)).notices().length(), 0)
+  let lit_dollar =
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a\\$", "with": "x" } } ] }
+  @test.assert_eq(compile(@config.parse(lit_dollar)).notices().length(), 0)
+  let boundary =
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "\\Bx", "with": "y" } } ] }
+  @test.assert_eq(compile(@config.parse(boundary)).notices().length(), 1)
+}
+
+///|
+test "each anchored hook produces its own notice" {
+  let json =
+    #|{
+    #|  "hooks": [
+    #|    { "action": { "type": "replace", "pattern": "^a", "with": "x" } },
+    #|    { "action": { "type": "replace", "pattern": "b$", "with": "y" } }
+    #|  ]
+    #|}
+  @test.assert_eq(compile(@config.parse(json)).notices().length(), 2)
+}
+
+///|
+async test "exec on_error skip keeps the text when the command fails" {
+  let json =
+    #|{ "hooks": [ { "action": { "type": "exec", "run": ["false"], "on_error": "skip" } } ] }
+  @test.assert_eq(run_cfg(json, "kept"), "kept")
+}
+
+///|
+async test "exec on_error abort carries the hook index" {
+  let json =
+    #|{ "hooks": [ { "action": { "type": "exec", "run": ["false"], "on_error": "abort" } } ] }
+  let msg = try {
+    run_cfg(json, "x") |> ignore
+    "no error"
+  } catch {
+    @action.ActionError(m) => m
+    e => "other: \{e}"
+  }
+  @test.assert_eq(msg.contains("config.hooks[0].action"), true)
+}
+
+///|
+async test "a positive timeout that is not exceeded succeeds" {
+  let json =
+    #|{ "hooks": [ { "action": { "type": "pipe", "run": ["cat"], "timeout_ms": 5000 } } ] }
+  @test.assert_eq(run_cfg(json, "kept"), "kept")
 }
 
 ///|

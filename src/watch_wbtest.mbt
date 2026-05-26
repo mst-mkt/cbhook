@@ -55,6 +55,31 @@ test "error_message unwraps a Failure without the type prefix" {
 }
 
 ///|
+test "error_message unwraps an ActionError" {
+  let msg = try {
+    raise @action.ActionError("boom")
+  } catch {
+    e => error_message(e)
+  }
+  @test.assert_eq(msg, "boom")
+}
+
+///|
+async test "run_pipeline leaves the clipboard unchanged when a hook fails" {
+  let json =
+    #|{ "hooks": [ { "action": { "type": "exec", "run": ["false"], "on_error": "abort" } } ] }
+  let compiled = @engine.compile(@config.parse(json))
+  @async.with_task_group(_group => {
+    let clipboard = @clipboard.Clipboard::new_in_memory()
+    clipboard.set_text("seed")
+    let last_written : Ref[String?] = { val: None }
+    run_pipeline(clipboard, compiled, last_written, "trigger")
+    @test.assert_eq(last_written.val, None)
+    @test.assert_eq(clipboard.get_text(), "seed")
+  })
+}
+
+///|
 test "after_fail_marker strips the location prefix" {
   @test.assert_eq(after_fail_marker("src/x.mbt:1:1 FAILED: boom"), "boom")
 }

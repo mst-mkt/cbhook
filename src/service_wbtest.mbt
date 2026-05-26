@@ -89,14 +89,14 @@ test "systemd_unit lays out sections, ordered env, and a trailing newline" {
     unit.contains("ExecStart=\"/usr/bin/cbhook\" watch --config \"/c.json\""),
     true,
   )
-  @test.assert_eq(unit.contains("Restart=on-failure"), true)
+  @test.assert_eq(unit.contains("[Unit]"), true)
+  // Environment lines must sit inside [Service] (after Restart, before [Install]).
   @test.assert_eq(
-    unit.contains("Environment=WAYLAND_DISPLAY=wayland-1\nEnvironment=DISPLAY=:0"),
+    unit.contains(
+      "Restart=on-failure\nEnvironment=WAYLAND_DISPLAY=wayland-1\nEnvironment=DISPLAY=:0\n\n[Install]\nWantedBy=default.target",
+    ),
     true,
   )
-  @test.assert_eq(unit.contains("[Unit]"), true)
-  @test.assert_eq(unit.contains("[Service]"), true)
-  @test.assert_eq(unit.contains("WantedBy=default.target"), true)
   @test.assert_eq(unit.has_suffix("\n"), true)
 }
 
@@ -116,11 +116,20 @@ test "launchd_plist is well-formed and restarts only on failure" {
   @test.assert_eq(plist.contains("<?xml version=\"1.0\""), true)
   @test.assert_eq(plist.contains("<!DOCTYPE plist"), true)
   @test.assert_eq(plist.contains("<string>dev.keito.cbhook</string>"), true)
-  @test.assert_eq(plist.contains("<string>/usr/local/bin/cbhook</string>"), true)
-  @test.assert_eq(plist.contains("<string>watch</string>"), true)
-  @test.assert_eq(plist.contains("<string>--config</string>"), true)
-  @test.assert_eq(plist.contains("<string>/c.json</string>"), true)
   @test.assert_eq(plist.contains("<key>RunAtLoad</key>"), true)
-  @test.assert_eq(plist.contains("<key>SuccessfulExit</key>"), true)
+  // ProgramArguments must be an ordered array: exe, watch, --config, config.
+  @test.assert_eq(
+    plist.contains(
+      "  <array>\n    <string>/usr/local/bin/cbhook</string>\n    <string>watch</string>\n    <string>--config</string>\n    <string>/c.json</string>\n  </array>",
+    ),
+    true,
+  )
+  // KeepAlive must restart only on failure (SuccessfulExit=false), not on success.
+  @test.assert_eq(
+    plist.contains(
+      "<key>KeepAlive</key>\n  <dict>\n    <key>SuccessfulExit</key>\n    <false/>\n  </dict>",
+    ),
+    true,
+  )
   @test.assert_eq(plist.has_suffix("\n"), true)
 }

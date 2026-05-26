@@ -113,11 +113,7 @@ async fn executable_path() -> String raise {
 fn config_home_of(xdg : String?, home : String?) -> String? {
   match nonempty(xdg) {
     Some(x) => Some(x)
-    None =>
-      match nonempty(home) {
-        Some(h) => Some("\{h}/.config")
-        None => None
-      }
+    None => nonempty(home).map(h => "\{h}/.config")
   }
 }
 
@@ -183,8 +179,8 @@ fn launchd_plist(label : String, exe : String, config : String) -> String {
 
 ///|
 async fn write_unit(dir : String, file : String, content : String) -> Unit raise {
-  // Re-installing overwrites any existing unit rather than appending or failing.
   @fs.mkdir(dir, recursive=true)
+  // write_file defaults to TruncateExisting, which won't create a new file.
   @fs.write_file(file, @utf8.encode(content), create_mode=CreateOrTruncate)
 }
 

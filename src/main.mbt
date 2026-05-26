@@ -1,13 +1,8 @@
 ///|
 extern "c" fn c_exit(code : Int) -> Unit = "exit"
 
-///|
-enum Pending {
-  Watch(config~ : String?)
-  Check(config~ : String?)
-  Service(config~ : String?)
-}
-
+// MoonBit's `fail()` (used by admiral for usage errors) prefixes the message
+// with "<loc> FAILED: "; strip it so those errors print cleanly.
 ///|
 fn after_fail_marker(m : String) -> String {
   match m.split(" FAILED: ").to_array() {
@@ -30,20 +25,26 @@ fn error_message(e : Error) -> String {
 ///|
 fn std_options() -> Array[@admiral.OptionDef] {
   [
-    @admiral.string("config", short='c', description="Path to the config file (.json)"),
+    @admiral.string("config", short='c', description="Path to the config file (.json|.pkl)"),
     @admiral.bool("verbose", short='v', description="Verbose (debug) logging"),
     @admiral.bool("quiet", short='q', description="Quiet (warnings only)"),
   ]
 }
 
 ///|
-fn select_command(pending : Ref[Pending?], ctx : @admiral.Context, p : Pending) -> Unit {
+// admiral's `run` callbacks are synchronous, so a command records its async
+// body in this slot; `main` runs it once the event loop is available.
+fn set_command(
+  slot : Ref[(async () -> Unit raise)?],
+  ctx : @admiral.Context,
+  body : async () -> Unit raise,
+) -> Unit {
   set_flag_level(ctx.get_bool("verbose"), ctx.get_bool("quiet"))
-  pending.val = Some(p)
+  slot.val = Some(body)
 }
 
 ///|
-fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
+fn build_cli(slot : Ref[(async () -> Unit raise)?]) -> @admiral.CliApp {
   @admiral.cli(
     name="cbhook",
     version="0.1.0",
@@ -54,7 +55,7 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
         description="Watch the clipboard and apply hooks on each change.",
         options=std_options(),
         run=Some(fn(ctx) {
-          select_command(pending, ctx, Watch(config=ctx.get_string("config")))
+          set_command(slot, ctx, () => watch(ctx.get_string("config")))
         }),
       ),
       @admiral.command(
@@ -62,7 +63,7 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
         description="Validate the config and exit (no watching).",
         options=std_options(),
         run=Some(fn(ctx) {
-          select_command(pending, ctx, Check(config=ctx.get_string("config")))
+          set_command(slot, ctx, () => check(ctx.get_string("config")))
         }),
       ),
       @admiral.command(
@@ -79,7 +80,7 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
             description="Install a systemd user unit (Linux) or launchd agent (macOS).",
             options=std_options(),
             run=Some(fn(ctx) {
-              select_command(pending, ctx, Service(config=ctx.get_string("config")))
+              set_command(slot, ctx, () => service_install(ctx.get_string("config")))
             }),
           ),
         ],
@@ -96,17 +97,12 @@ async fn fail_exit(e : Error) -> Unit {
 
 ///|
 async fn main {
-  let pending : Ref[Pending?] = { val: None }
-  try build_cli(pending).run() catch {
+  let slot : Ref[(async () -> Unit raise)?] = { val: None }
+  try build_cli(slot).run() catch {
     e => fail_exit(e)
   }
-  match pending.val {
-    Some(Watch(config~)) => try watch(config) catch { e => fail_exit(e) }
-    Some(Check(config~)) => try check(config) catch { e => fail_exit(e) }
-    Some(Service(config~)) =>
-      try service_install(config) catch {
-        e => fail_exit(e)
-      }
+  match slot.val {
+    Some(run_command) => try run_command() catch { e => fail_exit(e) }
     None => ()
   }
 }

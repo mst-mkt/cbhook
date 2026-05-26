@@ -20,11 +20,7 @@ fn effective_level(
 ) -> @config.LogLevel {
   match flag {
     Some(l) => l
-    None =>
-      match config {
-        Some(l) => l
-        None => @config.Info
-      }
+    None => config.unwrap_or(@config.Info)
   }
 }
 

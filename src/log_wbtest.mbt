@@ -22,3 +22,27 @@ test "should_emit gates messages below the active level" {
   @test.assert_eq(should_emit(@config.Info, @config.Warn), false)
   @test.assert_eq(should_emit(@config.Debug, @config.Debug), true)
 }
+
+///|
+test "set_flag_level maps -v/-q to the active level (verbose wins)" {
+  set_flag_level(true, false)
+  @test.assert_eq(active_level.val, @config.Debug)
+  set_flag_level(false, true)
+  @test.assert_eq(active_level.val, @config.Warn)
+  set_flag_level(true, true)
+  @test.assert_eq(active_level.val, @config.Debug)
+  set_flag_level(false, false)
+  @test.assert_eq(active_level.val, @config.Info)
+}
+
+///|
+test "apply_config_level uses config only when no flag is set" {
+  set_flag_level(false, false)
+  apply_config_level(Some(@config.Warn))
+  @test.assert_eq(active_level.val, @config.Warn)
+  set_flag_level(true, false)
+  apply_config_level(Some(@config.Warn))
+  @test.assert_eq(active_level.val, @config.Debug)
+  set_flag_level(false, false)
+  apply_config_level(None)
+}

@@ -44,6 +44,18 @@ test "non-ref dollar is literal" {
 }
 
 ///|
+test "$ before a non-digit char is literal" {
+  @test.assert_eq(rep("a", "$z", "a"), "$z")
+  @test.assert_eq(rep("(a)", "$1$z", "a"), "a$z")
+}
+
+///|
+test "multibyte text is preserved around replacements" {
+  @test.assert_eq(rep("o", "0", "fooあ"), "f00あ")
+  @test.assert_eq(rep("あ", "い", "xあy"), "xいy")
+}
+
+///|
 test "lone trailing dollar is literal" {
   @test.assert_eq(rep("a", "$", "a"), "$")
 }
@@ -115,5 +127,8 @@ test "whole-text trim with anchors works (first/last only)" {
 
 ///|
 test "anchored pattern re-evaluates per suffix (known regexp limitation)" {
+  // KNOWN LIMITATION, not desired: correct output is "Zaa" (^ matches only the
+  // string start). The regexp lib has no offset matching, so the suffix re-run
+  // re-anchors ^ and yields "ZZZ". Pinned to catch regressions.
   @test.assert_eq(rep("^a", "Z", "aaa"), "ZZZ")
 }

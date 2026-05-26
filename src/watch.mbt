@@ -7,7 +7,7 @@ async fn decide(
   if last_written == Some(text) {
     None
   } else {
-    let result = @engine.run(compiled, text)
+    let result = compiled.run(text)
     if result == text {
       None
     } else {
@@ -56,12 +56,13 @@ async fn run_pipeline(
     }
   }
   match result {
-    Some(r) => {
-      last_written.val = Some(r)
-      try clipboard.set_text(r) catch {
+    Some(r) =>
+      try {
+        clipboard.set_text(r)
+        last_written.val = Some(r)
+      } catch {
         e => log_warn("write failed: \{error_message(e)}")
       }
-    }
     None => ()
   }
 }
