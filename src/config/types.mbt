@@ -1,30 +1,30 @@
 ///|
-pub struct Config {
+pub(all) struct Config {
   hooks : Array[Hook]
 } derive(Eq, Debug)
 
 ///|
-pub struct Hook {
+pub(all) struct Hook {
   name : String?
   matcher : Matcher?
   action : Action
 } derive(Eq, Debug)
 
 ///|
-pub struct Matcher {
+pub(all) struct Matcher {
   pattern : String
   flags : String?
 } derive(Eq, Debug)
 
 ///|
-pub enum Action {
+pub(all) enum Action {
   Replace(pattern~ : String, replacement~ : String, flags~ : String?)
   Pipe(run~ : Array[String], timeout_ms~ : Int?, on_error~ : OnError)
   Exec(run~ : Array[String], timeout_ms~ : Int?, on_error~ : OnError)
 } derive(Eq, Debug)
 
 ///|
-pub enum OnError {
+pub(all) enum OnError {
   Skip
   Abort
 } derive(Eq, Debug)

@@ -1,0 +1,6 @@
+import {
+  "moonbitlang/regexp",
+  "moonbitlang/core/test",
+}
+
+supported_targets = "+native"
