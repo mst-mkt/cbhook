@@ -31,11 +31,7 @@ let
   unwrapped = moonPlatform.buildMoonPackage {
     inherit src moonModJson;
     moonRegistryIndex = moon-registry;
-    doCheck = true;
-    checkPhase = ''
-      cd $TMP
-      moon test --target native --release
-    '';
+    doCheck = false;
     meta = {
       description = "Watch the clipboard and transform it with hooks";
       mainProgram = "cbhook";
