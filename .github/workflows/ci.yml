@@ -45,7 +45,7 @@ jobs:
           name: mst-mkt
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: check & test
-        run: nix develop .#ci --command bash -c 'moon install && moon check && moon test --release'
+        run: nix develop .#ci --command bash -c 'moon update && moon check && moon test --release'
       - name: build
         run: nix build --print-build-logs .#cbhook
 
