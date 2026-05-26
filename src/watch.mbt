@@ -92,25 +92,35 @@ async fn drain(
 async fn watch(config : String?) -> Unit raise {
   let compiled = load_compiled(config)
   compiled.notices().each((n) => println("cbhook: notice: \{n}"))
-  @async.with_task_group(group => {
-    let clipboard = @clipboard.Clipboard::new()
-    let last_written : Ref[String?] = { val: None }
-    let pending : Ref[String?] = { val: None }
-    let running : Ref[Bool] = { val: false }
-    println("cbhook: watching clipboard (Ctrl-C to stop)")
-    clipboard.watch(group, (text) => {
-      pending.val = Some(text)
-      if !running.val {
-        running.val = true
-        group.spawn_bg(() => drain(
-          clipboard,
-          compiled,
-          last_written,
-          pending,
-          running,
-        ))
-      }
+  @signal.set_global_cancellation_signals([@signal.SIGINT, @signal.SIGTERM])
+  println("cbhook: watching clipboard (Ctrl-C to stop)")
+  try
+    @async.with_task_group(group => {
+      let clipboard = @clipboard.Clipboard::new()
+      let last_written : Ref[String?] = { val: None }
+      let pending : Ref[String?] = { val: None }
+      let running : Ref[Bool] = { val: false }
+      clipboard.watch(group, (text) => {
+        pending.val = Some(text)
+        if !running.val {
+          running.val = true
+          group.spawn_bg(() => drain(
+            clipboard,
+            compiled,
+            last_written,
+            pending,
+            running,
+          ))
+        }
+      })
+      |> ignore
     })
-    |> ignore
-  })
+  catch {
+    e =>
+      if @async.is_cancellation_error(e) {
+        println("cbhook: stopped")
+      } else {
+        raise e
+      }
+  }
 }
