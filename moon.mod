@@ -7,6 +7,7 @@ import {
   "mst-mkt/clipboard@0.1.1",
   "moonbitlang/regexp@0.3.5",
   "mizchi/admiral@0.1.0",
+  "mizchi/pkl@0.2.2",
 }
 
 preferred_target = "native"

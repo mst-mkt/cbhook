@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/json",
+  "mizchi/pkl",
   "moonbitlang/core/test",
 }
 
