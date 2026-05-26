@@ -7,14 +7,20 @@
       url = "git+https://github.com/moonbitlang/skills?submodules=1";
       flake = false;
     };
+    moon-registry = {
+      url = "git+https://mooncakes.io/git/index";
+      flake = false;
+    };
   };
 
   outputs =
     {
+      self,
       nixpkgs,
       moonbit-overlay,
       agent-skills,
       moonbit-skills,
+      moon-registry,
       ...
     }:
     let
@@ -37,6 +43,32 @@
         );
     in
     {
+      homeManagerModules = {
+        cbhook = import ./nix/home-manager.nix self;
+        default = self.homeManagerModules.cbhook;
+      };
+
+      overlays.default = final: _prev: {
+        cbhook = final.callPackage ./nix/package.nix { inherit moon-registry; };
+      };
+
+      checks = forAllSystems (pkgs: {
+        cbhook = self.packages.${pkgs.stdenv.hostPlatform.system}.cbhook;
+      });
+
+      formatter = forAllSystems (pkgs: pkgs.nixfmt);
+
+      packages = forAllSystems (
+        pkgs:
+        let
+          cbhook = pkgs.callPackage ./nix/package.nix { inherit moon-registry; };
+        in
+        {
+          default = cbhook;
+          inherit cbhook;
+        }
+      );
+
       devShells = forAllSystems (
         pkgs:
         let
@@ -64,15 +96,17 @@
           };
           bundle = agentLib.mkBundle { inherit pkgs selection; };
           targets = {
-            claude = agentLib.defaultLocalTargets.claude // { enable = true; };
+            claude = agentLib.defaultLocalTargets.claude // {
+              enable = true;
+            };
           };
         in
         {
           default = pkgs.mkShell {
             packages = [
               pkgs.moonbit-bin.moonbit.latest
-              pkgs.xclip # Linux X11
-              pkgs.wl-clipboard # Linux Wayland (wl-copy / wl-paste)
+              pkgs.xclip
+              pkgs.wl-clipboard
             ];
             shellHook = agentLib.mkShellHook { inherit pkgs bundle targets; };
           };

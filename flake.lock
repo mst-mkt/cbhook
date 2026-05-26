@@ -40,6 +40,22 @@
         "type": "github"
       }
     },
+    "moon-registry": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779816050,
+        "narHash": "sha256-Z0nHuFOUNbVRRfYmoQinTsZgPxoSHqBMkJ85iLOhbAw=",
+        "ref": "refs/heads/main",
+        "rev": "aa4675d52d776ae8dcc4bef0767ad55ef828609a",
+        "revCount": 9115,
+        "type": "git",
+        "url": "https://mooncakes.io/git/index"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://mooncakes.io/git/index"
+      }
+    },
     "moonbit-overlay": {
       "inputs": {
         "nixpkgs": "nixpkgs_2",
@@ -128,6 +144,7 @@
     "root": {
       "inputs": {
         "agent-skills": "agent-skills",
+        "moon-registry": "moon-registry",
         "moonbit-overlay": "moonbit-overlay",
         "moonbit-skills": "moonbit-skills",
         "nixpkgs": "nixpkgs_3"
