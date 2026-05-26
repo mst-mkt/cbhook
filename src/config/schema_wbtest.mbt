@@ -24,7 +24,7 @@ fn assert_json(actual : Json, expected : Json) -> Unit raise {
 ///|
 test "minimal replace hook decodes to the expected Config" {
   let src =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "with": "b" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": "b" } } ] }
   @test.assert_eq(
     parse(src),
     Config::{
@@ -58,7 +58,7 @@ test "replace with flags and a named hook + matcher" {
   let src =
     #|{ "hooks": [
     #|  { "name": "trim", "match": { "pattern": "x+$", "flags": "m" },
-    #|    "action": { "type": "replace", "pattern": "x+$", "with": "", "flags": "gm" } }
+    #|    "action": { "type": "replace", "pattern": "x+$", "replacement": "", "flags": "gm" } }
     #|] }
   let cfg = parse(src)
   @test.assert_eq(cfg.hooks[0].name, Some("trim"))
@@ -119,7 +119,7 @@ test "empty hooks array is valid" {
 test "multiple hooks preserve order" {
   let src =
     #|{ "hooks": [
-    #|  { "action": { "type": "replace", "pattern": "a", "with": "b" } },
+    #|  { "action": { "type": "replace", "pattern": "a", "replacement": "b" } },
     #|  { "action": { "type": "pipe", "run": ["jq"] } },
     #|  { "action": { "type": "exec", "run": ["true"] } }
     #|] }
@@ -209,7 +209,7 @@ test "unknown action type lists the valid ones" {
 ///|
 test "replace missing pattern" {
   let src =
-    #|{ "hooks": [ { "action": { "type": "replace", "with": "" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "replacement": "" } } ] }
   @test.assert_eq(
     decode_err(src),
     "config.hooks[0].action: missing required field \"pattern\"",
@@ -217,19 +217,19 @@ test "replace missing pattern" {
 }
 
 ///|
-test "replace missing with" {
+test "replace missing replacement" {
   let src =
     #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a" } } ] }
   @test.assert_eq(
     decode_err(src),
-    "config.hooks[0].action: missing required field \"with\"",
+    "config.hooks[0].action: missing required field \"replacement\"",
   )
 }
 
 ///|
 test "replace pattern must be a string" {
   let src =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": 1, "with": "" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": 1, "replacement": "" } } ] }
   @test.assert_eq(
     decode_err(src),
     "config.hooks[0].action.pattern: expected a string",
@@ -239,7 +239,7 @@ test "replace pattern must be a string" {
 ///|
 test "replace with unknown field" {
   let src =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "with": "b", "g": true } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": "b", "g": true } } ] }
   @test.assert_eq(decode_err(src), "config.hooks[0].action: unknown field \"g\"")
 }
 
@@ -339,7 +339,7 @@ test "all missing required fields are reported at once" {
     #|{ "hooks": [ { "action": { "type": "replace" } } ] }
   @test.assert_eq(
     decode_err(src),
-    "config.hooks[0].action: missing required field \"pattern\"\nconfig.hooks[0].action: missing required field \"with\"",
+    "config.hooks[0].action: missing required field \"pattern\"\nconfig.hooks[0].action: missing required field \"replacement\"",
   )
 }
 
@@ -347,12 +347,12 @@ test "all missing required fields are reported at once" {
 test "errors across the whole document accumulate" {
   let src =
     #|{ "hooks": [
-    #|  { "action": { "type": "replace", "pattern": 1, "with": 2 } },
+    #|  { "action": { "type": "replace", "pattern": 1, "replacement": 2 } },
     #|  { "match": { "pattern": "ok" } }
     #|] }
   @test.assert_eq(
     decode_err(src),
-    "config.hooks[0].action.pattern: expected a string\nconfig.hooks[0].action.with: expected a string\nconfig.hooks[1]: missing required field \"action\"",
+    "config.hooks[0].action.pattern: expected a string\nconfig.hooks[0].action.replacement: expected a string\nconfig.hooks[1]: missing required field \"action\"",
   )
 }
 
@@ -432,19 +432,19 @@ test "match must be an object" {
 }
 
 ///|
-test "replace with must be a string" {
+test "replace replacement must be a string" {
   let src =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "with": 1 } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": 1 } } ] }
   @test.assert_eq(
     decode_err(src),
-    "config.hooks[0].action.with: expected a string",
+    "config.hooks[0].action.replacement: expected a string",
   )
 }
 
 ///|
 test "replace flags must be a string" {
   let src =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "with": "b", "flags": 1 } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": "b", "flags": 1 } } ] }
   @test.assert_eq(
     decode_err(src),
     "config.hooks[0].action.flags: expected a string",
@@ -509,7 +509,7 @@ test "action schema is a oneOf of replace/pipe/exec" {
   let replace = variants[0]
   assert_json(
     get_key(replace, "required"),
-    ["type", "pattern", "with"].to_json(),
+    ["type", "pattern", "replacement"].to_json(),
   )
   assert_json(get_key(replace, "additionalProperties"), false.to_json())
   assert_json(

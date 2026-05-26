@@ -27,7 +27,7 @@ fn action_schema() -> Schema[Action] {
       })
       .apply(const_field("type", "replace"))
       .apply(required_field("pattern", string_schema()))
-      .apply(required_field("with", string_schema()))
+      .apply(required_field("replacement", string_schema()))
       .apply(optional_field("flags", string_schema()))
       .build(),
     ),

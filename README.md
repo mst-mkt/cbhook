@@ -53,13 +53,17 @@ The config is JSON or [pkl](https://pkl-lang.org/), resolved from the first matc
     {
       "name": "x.com -> twitter.com",
       "match": { "pattern": "https?://x\\.com\\b" },
-      "action": { "type": "replace", "pattern": "(https?://)x\\.com\\b", "with": "$1twitter.com" }
+      "action": {
+        "type": "replace",
+        "pattern": "(https?://)x\\.com\\b",
+        "replacement": "$1twitter.com"
+      }
     }
   ]
 }
 ```
 
-The same config in pkl (`with` is a keyword, so it is written as `["with"]`):
+The same config in pkl:
 
 ```pkl
 hooks = new Listing {
@@ -69,7 +73,7 @@ hooks = new Listing {
     action = new {
       type = "replace"
       pattern = "(https?://)x\\.com\\b"
-      ["with"] = "$1twitter.com"
+      replacement = "$1twitter.com"
     }
   }
 }
@@ -81,14 +85,19 @@ hooks = new Listing {
 
 Substitute regex matches in the clipboard text.
 
-| field     | required | description                                              |
-| --------- | -------- | -------------------------------------------------------- |
-| `pattern` | x        | Regular expression to match.                             |
-| `with`    | x        | Replacement; `$1` / `${name}` expand groups, `$$` → `$`. |
-| `flags`   |          | Regex flags, e.g. `"i"`.                                 |
+| field         | required | description                                         |
+| ------------- | -------- | --------------------------------------------------- |
+| `pattern`     | x        | Regular expression to match.                        |
+| `replacement` | x        | Result; `$1` / `${name}` expand groups, `$$` → `$`. |
+| `flags`       |          | Regex flags, e.g. `"i"`.                            |
 
 ```json
-{ "type": "replace", "pattern": "(https?://)x\\.com\\b", "with": "$1twitter.com", "flags": "i" }
+{
+  "type": "replace",
+  "pattern": "(https?://)x\\.com\\b",
+  "replacement": "$1twitter.com",
+  "flags": "i"
+}
 ```
 
 ### pipe

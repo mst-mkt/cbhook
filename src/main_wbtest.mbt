@@ -1,7 +1,7 @@
 ///|
 test "error_message extracts the ConfigError payload" {
   let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a(", "with": "" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a(", "replacement": "" } } ] }
   let msg = try {
     @engine.compile(@config.parse(json)) |> ignore
     "no error"

@@ -9,8 +9,7 @@ let
     if a ? replace then
       {
         type = "replace";
-        inherit (a.replace) pattern;
-        "with" = a.replace.replacement;
+        inherit (a.replace) pattern replacement;
       }
       // optionalAttrs (a.replace.flags != null) { inherit (a.replace) flags; }
     else if a ? pipe then

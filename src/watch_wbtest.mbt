@@ -1,7 +1,7 @@
 ///|
 async test "decide suppresses the self-write echo" {
   let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "with": "0" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "replacement": "0" } } ] }
   let c = @engine.compile(@config.parse(json))
   @test.assert_eq(decide(Some("foo"), "foo", c), None)
 }
@@ -9,7 +9,7 @@ async test "decide suppresses the self-write echo" {
 ///|
 async test "decide transforms a fresh value" {
   let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "with": "0" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "replacement": "0" } } ] }
   let c = @engine.compile(@config.parse(json))
   @test.assert_eq(decide(None, "foo", c), Some("f00"))
 }
@@ -17,7 +17,7 @@ async test "decide transforms a fresh value" {
 ///|
 async test "decide returns None when the transform is a no-op" {
   let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "with": "0" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "replacement": "0" } } ] }
   let c = @engine.compile(@config.parse(json))
   @test.assert_eq(decide(None, "xyz", c), None)
 }
@@ -25,7 +25,7 @@ async test "decide returns None when the transform is a no-op" {
 ///|
 async test "decide guards oscillation in one step" {
   let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "with": "b" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": "b" } } ] }
   let c = @engine.compile(@config.parse(json))
   @test.assert_eq(decide(None, "a", c), Some("b"))
   @test.assert_eq(decide(Some("b"), "b", c), None)
@@ -57,7 +57,7 @@ async test "run_pipeline leaves the clipboard unchanged when a hook fails" {
 ///|
 async test "drain processes the pending value and resets running" {
   let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "with": "0" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "replacement": "0" } } ] }
   let compiled = @engine.compile(@config.parse(json))
   @async.with_task_group(_group => {
     let clipboard = @clipboard.Clipboard::new_in_memory()

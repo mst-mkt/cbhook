@@ -31,7 +31,7 @@ test "parse_file evaluates a .pkl source into a Config" {
     #|    ["action"] = new Mapping {
     #|      ["type"] = "replace"
     #|      ["pattern"] = "a"
-    #|      ["with"] = "b"
+    #|      ["replacement"] = "b"
     #|    }
     #|  }
     #|}

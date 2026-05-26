@@ -19,7 +19,7 @@ async test "replace action is wired through the pipeline" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "o", "with": "0" } }
+    #|    { "action": { "type": "replace", "pattern": "o", "replacement": "0" } }
     #|  ]
     #|}
   @test.assert_eq(run_cfg(json, "foo"), "f00")
@@ -32,7 +32,7 @@ async test "matcher gates the hook (no match = unchanged)" {
     #|  "hooks": [
     #|    {
     #|      "match": { "pattern": "zzz" },
-    #|      "action": { "type": "replace", "pattern": "a", "with": "X" }
+    #|      "action": { "type": "replace", "pattern": "a", "replacement": "X" }
     #|    }
     #|  ]
     #|}
@@ -46,7 +46,7 @@ async test "matcher matches = hook applies" {
     #|  "hooks": [
     #|    {
     #|      "match": { "pattern": "ana" },
-    #|      "action": { "type": "replace", "pattern": "a", "with": "X" }
+    #|      "action": { "type": "replace", "pattern": "a", "replacement": "X" }
     #|    }
     #|  ]
     #|}
@@ -58,8 +58,8 @@ async test "pipeline applies hooks in order" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "a", "with": "b" } },
-    #|    { "action": { "type": "replace", "pattern": "b", "with": "c" } }
+    #|    { "action": { "type": "replace", "pattern": "a", "replacement": "b" } },
+    #|    { "action": { "type": "replace", "pattern": "b", "replacement": "c" } }
     #|  ]
     #|}
   @test.assert_eq(run_cfg(json, "a"), "c")
@@ -174,7 +174,7 @@ async test "abort error carries the hook index" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "a", "with": "b" } },
+    #|    { "action": { "type": "replace", "pattern": "a", "replacement": "b" } },
     #|    { "action": { "type": "pipe", "run": ["false"], "on_error": "abort" } }
     #|  ]
     #|}
@@ -193,7 +193,7 @@ test "replace-only config has no notices" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "a", "with": "b" } }
+    #|    { "action": { "type": "replace", "pattern": "a", "replacement": "b" } }
     #|  ]
     #|}
   @test.assert_eq(compile(@config.parse(json)).notices().length(), 0)
@@ -216,7 +216,7 @@ test "start-anchor pattern emits an anchored notice" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "^a", "with": "Z" } }
+    #|    { "action": { "type": "replace", "pattern": "^a", "replacement": "Z" } }
     #|  ]
     #|}
   let compiled = compile(@config.parse(json))
@@ -229,7 +229,7 @@ test "end-anchor pattern emits an anchored notice" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "a$", "with": "X" } }
+    #|    { "action": { "type": "replace", "pattern": "a$", "replacement": "X" } }
     #|  ]
     #|}
   @test.assert_eq(
@@ -243,7 +243,7 @@ test "word-boundary pattern emits an anchored notice" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "\\b", "with": "X" } }
+    #|    { "action": { "type": "replace", "pattern": "\\b", "replacement": "X" } }
     #|  ]
     #|}
   @test.assert_eq(
@@ -257,7 +257,7 @@ test "negated char class is not treated as anchored" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "[^a]", "with": "X" } }
+    #|    { "action": { "type": "replace", "pattern": "[^a]", "replacement": "X" } }
     #|  ]
     #|}
   @test.assert_eq(compile(@config.parse(json)).notices().length(), 0)
@@ -266,13 +266,13 @@ test "negated char class is not treated as anchored" {
 ///|
 test "escaped anchors are literal; word boundary is not" {
   let lit_caret =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "\\^a", "with": "x" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "\\^a", "replacement": "x" } } ] }
   @test.assert_eq(compile(@config.parse(lit_caret)).notices().length(), 0)
   let lit_dollar =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a\\$", "with": "x" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a\\$", "replacement": "x" } } ] }
   @test.assert_eq(compile(@config.parse(lit_dollar)).notices().length(), 0)
   let boundary =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "\\Bx", "with": "y" } } ] }
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "\\Bx", "replacement": "y" } } ] }
   @test.assert_eq(compile(@config.parse(boundary)).notices().length(), 1)
 }
 
@@ -281,8 +281,8 @@ test "each anchored hook produces its own notice" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "^a", "with": "x" } },
-    #|    { "action": { "type": "replace", "pattern": "b$", "with": "y" } }
+    #|    { "action": { "type": "replace", "pattern": "^a", "replacement": "x" } },
+    #|    { "action": { "type": "replace", "pattern": "b$", "replacement": "y" } }
     #|  ]
     #|}
   @test.assert_eq(compile(@config.parse(json)).notices().length(), 2)
@@ -321,7 +321,7 @@ test "invalid action regex fails compile with path" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "a(b", "with": "" } }
+    #|    { "action": { "type": "replace", "pattern": "a(b", "replacement": "" } }
     #|  ]
     #|}
   @test.assert_eq(
@@ -358,7 +358,7 @@ test "both invalid matcher and action regex are reported together" {
     #|  "hooks": [
     #|    {
     #|      "match": { "pattern": "a(" },
-    #|      "action": { "type": "replace", "pattern": "b[", "with": "" }
+    #|      "action": { "type": "replace", "pattern": "b[", "replacement": "" }
     #|    }
     #|  ]
     #|}
@@ -372,8 +372,8 @@ test "all invalid regexes are reported at once" {
   let json =
     #|{
     #|  "hooks": [
-    #|    { "action": { "type": "replace", "pattern": "a(", "with": "" } },
-    #|    { "action": { "type": "replace", "pattern": "b[", "with": "" } }
+    #|    { "action": { "type": "replace", "pattern": "a(", "replacement": "" } },
+    #|    { "action": { "type": "replace", "pattern": "b[", "replacement": "" } }
     #|  ]
     #|}
   let msg = compile_err(json)
