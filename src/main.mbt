@@ -67,6 +67,23 @@ fn build_cli(slot : Ref[(async () -> Unit raise)?]) -> @admiral.CliApp {
         }),
       ),
       @admiral.command(
+        name="eval",
+        description="Apply hooks to the given text (or stdin) and print the result.",
+        options=std_options(),
+        positionals=[
+          @admiral.positional(
+            "text",
+            description="Text to transform (reads stdin if omitted)",
+          ),
+        ],
+        run=Some(fn(ctx) {
+          set_command(slot, ctx, () => evaluate(
+            ctx.get_strings("text"),
+            ctx.get_string("config"),
+          ))
+        }),
+      ),
+      @admiral.command(
         name="schema",
         description="Print the config JSON Schema (draft-07).",
         run=Some(fn(_ctx) { println(@config.schema_json()) }),

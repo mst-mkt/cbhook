@@ -17,24 +17,6 @@ async fn decide(
 }
 
 ///|
-async fn load_compiled(config : String?) -> @engine.Compiled raise {
-  let path = require_config_path(config)
-  let source = try @fs.read_file(path).text() catch {
-    _ => raise @config.ConfigError("cannot read config file: \{path}")
-  }
-  let cfg = @config.parse_file(path, source)
-  apply_config_level(cfg.log_level)
-  @engine.compile(cfg)
-}
-
-///|
-async fn check(config : String?) -> Unit raise {
-  let compiled = load_compiled(config)
-  log_notices(compiled.notices()[:])
-  log_info("config is valid")
-}
-
-///|
 fn take_pending(pending : Ref[String?]) -> String? {
   let next = pending.val
   pending.val = None

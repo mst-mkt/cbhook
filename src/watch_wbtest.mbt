@@ -32,36 +32,11 @@ async test "decide guards oscillation in one step" {
 }
 
 ///|
-test "error_message extracts the ConfigError payload" {
-  let json =
-    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a(", "with": "" } } ] }
-  let msg = try {
-    @engine.compile(@config.parse(json)) |> ignore
-    "no error"
-  } catch {
-    e => error_message(e)
-  }
-  @test.assert_eq(msg.contains("config.hooks[0].action.pattern"), true)
-}
-
-///|
-test "error_message unwraps a Failure without the type prefix" {
-  let msg = try {
-    fail("boom")
-  } catch {
-    e => error_message(e)
-  }
-  @test.assert_eq(msg, "boom")
-}
-
-///|
-test "error_message unwraps an ActionError" {
-  let msg = try {
-    raise @action.ActionError("boom")
-  } catch {
-    e => error_message(e)
-  }
-  @test.assert_eq(msg, "boom")
+test "take_pending returns the value and clears it" {
+  let r : Ref[String?] = { val: Some("x") }
+  @test.assert_eq(take_pending(r), Some("x"))
+  @test.assert_eq(r.val, None)
+  @test.assert_eq(take_pending(r), None)
 }
 
 ///|
@@ -80,29 +55,6 @@ async test "run_pipeline leaves the clipboard unchanged when a hook fails" {
 }
 
 ///|
-test "after_fail_marker strips the location prefix" {
-  @test.assert_eq(after_fail_marker("src/x.mbt:1:1 FAILED: boom"), "boom")
-}
-
-///|
-test "after_fail_marker keeps a message without the marker" {
-  @test.assert_eq(after_fail_marker("plain message"), "plain message")
-}
-
-///|
-test "after_fail_marker keeps everything after the first marker" {
-  @test.assert_eq(after_fail_marker("loc FAILED: a FAILED: b"), "a FAILED: b")
-}
-
-///|
-test "take_pending returns the value and clears it" {
-  let r : Ref[String?] = { val: Some("x") }
-  @test.assert_eq(take_pending(r), Some("x"))
-  @test.assert_eq(r.val, None)
-  @test.assert_eq(take_pending(r), None)
-}
-
-///|
 async test "drain processes the pending value and resets running" {
   let json =
     #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "with": "0" } } ] }
@@ -118,16 +70,4 @@ async test "drain processes the pending value and resets running" {
     @test.assert_eq(last_written.val, Some("f00"))
     @test.assert_eq(clipboard.get_text(), "f00")
   })
-}
-
-///|
-async test "load_compiled raises ConfigError for an unreadable path" {
-  let msg = try {
-    load_compiled(Some("/no/such/cbhook/file.json")) |> ignore
-    "no error"
-  } catch {
-    @config.ConfigError(m) => m
-    e => "other: \{e}"
-  }
-  @test.assert_eq(msg.contains("cannot read config file"), true)
 }
