@@ -18,13 +18,7 @@ async fn decide(
 
 ///|
 async fn load_compiled(config : String?) -> @engine.Compiled raise {
-  let path = match discover_config_path(config) {
-    Some(p) => p
-    None =>
-      raise @config.ConfigError(
-        "no config found (use --config, $CBHOOK_CONFIG, or ~/.config/cbhook/config.json)",
-      )
-  }
+  let path = require_config_path(config)
   let source = try @fs.read_file(path).text() catch {
     _ => raise @config.ConfigError("cannot read config file: \{path}")
   }

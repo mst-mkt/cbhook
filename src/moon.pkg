@@ -1,8 +1,10 @@
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
+  "moonbitlang/async/process",
   "moonbitlang/async/signal",
   "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
   "mst-mkt/clipboard",
   "mst-mkt/cbhook/config",
   "mst-mkt/cbhook/action",

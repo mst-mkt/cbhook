@@ -5,6 +5,7 @@ extern "c" fn c_exit(code : Int) -> Unit = "exit"
 enum Pending {
   Watch(config~ : String?)
   Check(config~ : String?)
+  Service(config~ : String?)
 }
 
 ///|
@@ -66,6 +67,26 @@ fn build_cli(pending : Ref[Pending?]) -> @admiral.CliApp {
         description="Print the config JSON Schema (draft-07).",
         run=Some(fn(_ctx) { println(@config.schema_json()) }),
       ),
+      @admiral.command(
+        name="service",
+        description="Manage the cbhook background service.",
+        subcommands=[
+          @admiral.command(
+            name="install",
+            description="Install a systemd user unit (Linux) or launchd agent (macOS).",
+            options=[
+              @admiral.string(
+                "config",
+                short='c',
+                description="Path to the config file (.json)",
+              ),
+            ],
+            run=Some(fn(ctx) {
+              pending.val = Some(Service(config=ctx.get_string("config")))
+            }),
+          ),
+        ],
+      ),
     ],
   )
 }
@@ -89,6 +110,13 @@ async fn main {
       }
     Some(Check(config~)) =>
       try check(config) catch {
+        e => {
+          println("cbhook: \{error_message(e)}")
+          c_exit(1)
+        }
+      }
+    Some(Service(config~)) =>
+      try service_install(config) catch {
         e => {
           println("cbhook: \{error_message(e)}")
           c_exit(1)

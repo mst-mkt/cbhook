@@ -40,3 +40,14 @@ fn discover_config_path(explicit : String?) -> String? {
     @env.get_env_var("HOME"),
   )
 }
+
+///|
+fn require_config_path(explicit : String?) -> String raise {
+  match discover_config_path(explicit) {
+    Some(p) => p
+    None =>
+      raise @config.ConfigError(
+        "no config found (use --config, $CBHOOK_CONFIG, or ~/.config/cbhook/config.json)",
+      )
+  }
+}
