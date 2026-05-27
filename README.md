@@ -123,6 +123,11 @@ left unchanged. Takes the same fields as [`pipe`](#pipe).
 { "type": "exec", "run": ["notify-send", "clipboard changed"] }
 ```
 
+> [!CAUTION]
+> `pipe` and `exec` pass the **entire clipboard** — which may include passwords,
+> 2FA codes, or private keys — to the command's stdin and inherited environment.
+> Scope them with a `match` pattern so they only run on the content you intend.
+
 ## Commands
 
 | command                  | description                                          |
