@@ -16,12 +16,13 @@ fn os_of_uname(name : String) -> ServiceOs raise {
     "Darwin" => Macos
     "Linux" => Linux
     "" => fail("could not detect the operating system (uname failed)")
-    other => fail("service install supports Linux and macOS only (uname: \{other})")
+    other =>
+      fail("service install supports Linux and macOS only (uname: \{other})")
   }
 }
 
 ///|
-async fn detect_os() -> ServiceOs raise {
+async fn detect_os() -> ServiceOs {
   let (status, out, _err) = @process.collect_output("uname", ["-s"])
   os_of_uname(if status == 0 { out.text().trim().to_owned() } else { "" })
 }
@@ -80,7 +81,7 @@ async fn search_path(dirs : ArrayView[StringView], name : String) -> String? {
 
 ///|
 async fn is_regular_file(path : String) -> Bool {
-  try @fs.kind(path) is @fs.Regular catch {
+  try (@fs.kind(path) is @fs.Regular) catch {
     _ => false
   }
 }
@@ -94,7 +95,7 @@ async fn find_on_path(name : String) -> String? {
 }
 
 ///|
-async fn executable_path() -> String raise {
+async fn executable_path() -> String {
   match classify_exe(@env.args()[:], @env.current_dir()) {
     Some(Ready(p)) => p
     Some(Bare(name)) =>
@@ -149,6 +150,35 @@ fn systemd_unit(exec_start : String, env : Array[(String, String)]) -> String {
 }
 
 ///|
+fn xml_escape(s : String) -> String {
+  let sb = StringBuilder::new()
+  fn go(v : StringView) -> Unit {
+    match v {
+      [] => ()
+      ['&', .. rest] => {
+        sb.write_string("&amp;")
+        go(rest)
+      }
+      ['<', .. rest] => {
+        sb.write_string("&lt;")
+        go(rest)
+      }
+      ['>', .. rest] => {
+        sb.write_string("&gt;")
+        go(rest)
+      }
+      [c, .. rest] => {
+        sb.write_char(c)
+        go(rest)
+      }
+    }
+  }
+
+  go(s[:])
+  sb.to_string()
+}
+
+///|
 fn launchd_plist(label : String, exe : String, config : String) -> String {
   [
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
@@ -159,10 +189,10 @@ fn launchd_plist(label : String, exe : String, config : String) -> String {
     "  <string>\{label}</string>",
     "  <key>ProgramArguments</key>",
     "  <array>",
-    "    <string>\{exe}</string>",
+    "    <string>\{xml_escape(exe)}</string>",
     "    <string>watch</string>",
     "    <string>--config</string>",
-    "    <string>\{config}</string>",
+    "    <string>\{xml_escape(config)}</string>",
     "  </array>",
     "  <key>RunAtLoad</key>",
     "  <true/>",
@@ -178,19 +208,20 @@ fn launchd_plist(label : String, exe : String, config : String) -> String {
 }
 
 ///|
-async fn write_unit(dir : String, file : String, content : String) -> Unit raise {
+async fn write_unit(dir : String, file : String, content : String) -> Unit {
   @fs.mkdir(dir, recursive=true)
   // write_file defaults to TruncateExisting, which won't create a new file.
   @fs.write_file(file, @utf8.encode(content), create_mode=CreateOrTruncate)
 }
 
 ///|
-async fn service_install(config : String?) -> Unit raise {
+async fn service_install(config : String?) -> Unit {
   let exe = executable_path()
   let config_path = absolutize(require_config_path(config), @env.current_dir())
   match detect_os() {
     Linux => {
-      let dir = match config_home_of(
+      let dir = match
+        config_home_of(
           @env.get_env_var("XDG_CONFIG_HOME"),
           @env.get_env_var("HOME"),
         ) {
@@ -199,7 +230,11 @@ async fn service_install(config : String?) -> Unit raise {
       }
       let file = "\{dir}/\{UNIT_FILENAME}"
       let exec_start = "\"\{exe}\" watch --config \"\{config_path}\""
-      write_unit(dir, file, systemd_unit(exec_start, display_env_of(@env.get_env_var)))
+      write_unit(
+        dir,
+        file,
+        systemd_unit(exec_start, display_env_of(@env.get_env_var)),
+      )
       log_info("installed \{file}")
       log_info("enable with: systemctl --user enable --now \{UNIT_FILENAME}")
     }

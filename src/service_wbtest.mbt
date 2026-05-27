@@ -66,7 +66,10 @@ test "display_env_of keeps set, nonempty vars in order" {
 
 ///|
 test "classify_exe distinguishes absolute, relative, and bare names" {
-  @test.assert_eq(classify_exe(["/opt/cbhook"], None), Some(Ready("/opt/cbhook")))
+  @test.assert_eq(
+    classify_exe(["/opt/cbhook"], None),
+    Some(Ready("/opt/cbhook")),
+  )
   @test.assert_eq(
     classify_exe(["./cbhook"], Some("/cwd")),
     Some(Ready("/cwd/./cbhook")),
@@ -109,9 +112,7 @@ test "systemd_unit omits Environment lines when no env is given" {
 ///|
 test "launchd_plist is well-formed and restarts only on failure" {
   let plist = launchd_plist(
-    "dev.keito.cbhook",
-    "/usr/local/bin/cbhook",
-    "/c.json",
+    "dev.keito.cbhook", "/usr/local/bin/cbhook", "/c.json",
   )
   @test.assert_eq(plist.contains("<?xml version=\"1.0\""), true)
   @test.assert_eq(plist.contains("<!DOCTYPE plist"), true)
@@ -132,4 +133,16 @@ test "launchd_plist is well-formed and restarts only on failure" {
     true,
   )
   @test.assert_eq(plist.has_suffix("\n"), true)
+}
+
+///|
+test "launchd_plist escapes XML metacharacters in paths" {
+  let plist = launchd_plist(
+    "dev.keito.cbhook", "/usr/local/bin/cbhook", "/home/a & b/<c>.json",
+  )
+  @test.assert_eq(
+    plist.contains("<string>/home/a &amp; b/&lt;c&gt;.json</string>"),
+    true,
+  )
+  @test.assert_eq(plist.contains("/home/a & b/<c>.json"), false)
 }
