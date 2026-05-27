@@ -5,6 +5,15 @@ versioned_files = [
   { path = "src/main.mbt", regex = 'version="(?<version>\d+\.\d+\.\d+)"' },
 ]
 
+[[package.assets]]
+path = "artifacts/cbhook-x86_64-linux"
+
+[[package.assets]]
+path = "artifacts/cbhook-aarch64-linux"
+
+[[package.assets]]
+path = "artifacts/cbhook-aarch64-darwin"
+
 [github]
 owner = "mst-mkt"
 repo = "cbhook"
