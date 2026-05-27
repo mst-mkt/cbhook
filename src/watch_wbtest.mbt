@@ -61,6 +61,8 @@ async test "drain processes the pending value and resets running" {
   let compiled = @engine.compile(@config.parse(json))
   @async.with_task_group(_group => {
     let clipboard = @clipboard.Clipboard::new_in_memory()
+    // The clipboard holds the value the watcher observed and queued.
+    clipboard.set_text("foo")
     let last_written : Ref[String?] = { val: None }
     let pending : Ref[String?] = { val: Some("foo") }
     let running : Ref[Bool] = { val: true }
@@ -69,5 +71,21 @@ async test "drain processes the pending value and resets running" {
     @test.assert_eq(pending.val, None)
     @test.assert_eq(last_written.val, Some("f00"))
     @test.assert_eq(clipboard.get_text(), "f00")
+  })
+}
+
+///|
+async test "run_pipeline does not clobber a clipboard change made mid-flight" {
+  let json =
+    #|{ "hooks": [ { "action": { "type": "replace", "pattern": "o", "replacement": "0" } } ] }
+  let compiled = @engine.compile(@config.parse(json))
+  @async.with_task_group(_group => {
+    let clipboard = @clipboard.Clipboard::new_in_memory()
+    // The watcher observed "foo", but by writeback time the user copied "fresh".
+    clipboard.set_text("fresh")
+    let last_written : Ref[String?] = { val: None }
+    run_pipeline(clipboard, compiled, last_written, "foo")
+    @test.assert_eq(clipboard.get_text(), "fresh")
+    @test.assert_eq(last_written.val, None)
   })
 }

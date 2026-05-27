@@ -39,9 +39,14 @@ async fn run_pipeline(
   }
   match result {
     Some(r) =>
+      // Don't clobber a copy the user made while a slow hook was running.
       try {
-        clipboard.set_text(r)
-        last_written.val = Some(r)
+        if clipboard.get_text() == text {
+          clipboard.set_text(r)
+          last_written.val = Some(r)
+        } else {
+          log_debug("clipboard changed during processing; skipping writeback")
+        }
       } catch {
         e => log_warn("write failed: \{error_message(e)}")
       }
