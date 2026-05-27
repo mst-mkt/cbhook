@@ -1,6 +1,6 @@
 ///|
 fn is_digit(c : Char) -> Bool {
-  c is '0'..='9'
+  c is ('0'..='9')
 }
 
 ///|
@@ -64,47 +64,72 @@ fn lookup(res : @regexp.MatchResult, key : String) -> String {
 }
 
 ///|
-fn expand(template : String, res : @regexp.MatchResult) -> String {
-  fn go(view : StringView, acc : String) -> String {
+fn expand_into(
+  sb : StringBuilder,
+  template : String,
+  res : @regexp.MatchResult,
+) -> Unit {
+  fn go(view : StringView) -> Unit {
     match view {
-      [] => acc
-      ['$', '$', .. rest] => go(rest, acc + "$")
+      [] => ()
+      ['$', '$', .. rest] => {
+        sb.write_char('$')
+        go(rest)
+      }
       ['$', '{', .. rest] => {
         let (key, after) = take_until(rest, '}')
-        go(after, acc + lookup(res, key))
+        sb.write_string(lookup(res, key))
+        go(after)
       }
-      ['$', '0'..='9' as d, .. rest] =>
-        go(rest, acc + group_str(res, digit_val(d)))
-      ['$', d, .. rest] => go(rest, acc + "$" + d.to_string())
-      ['$'] => acc + "$"
-      [c, .. rest] => go(rest, acc + c.to_string())
+      ['$', '0'..='9' as d, .. rest] => {
+        sb.write_string(group_str(res, digit_val(d)))
+        go(rest)
+      }
+      ['$', d, .. rest] => {
+        sb.write_char('$')
+        sb.write_char(d)
+        go(rest)
+      }
+      ['$'] => sb.write_char('$')
+      [c, .. rest] => {
+        sb.write_char(c)
+        go(rest)
+      }
     }
   }
 
-  go(template[:], "")
+  go(template[:])
 }
 
 ///|
+/// Appends each input segment to a StringBuilder exactly once, keeping the whole
+/// replacement linear in the input length (no quadratic `acc + …` rebuilds).
 pub fn replace(re : @regexp.Regexp, template : String, text : String) -> String {
-  fn go(rem : StringView, acc : String) -> String {
+  let sb = StringBuilder::new()
+  fn go(rem : StringView) -> Unit {
     let res = re.execute(rem)
     if res.matched() {
       let before = res.before()
       let after = res.after()
       let match_len = rem.length() - before.length() - after.length()
-      let acc2 = acc + before.to_owned() + expand(template, res)
+      sb.write_view(before)
+      expand_into(sb, template, res)
       if match_len == 0 {
         match after {
-          [] => acc2
-          [c, .. rest] => go(rest, acc2 + c.to_string())
+          [] => ()
+          [c, .. rest] => {
+            sb.write_char(c)
+            go(rest)
+          }
         }
       } else {
-        go(after, acc2)
+        go(after)
       }
     } else {
-      acc + rem.to_owned()
+      sb.write_view(rem)
     }
   }
 
-  go(text[:], "")
+  go(text[:])
+  sb.to_string()
 }

@@ -56,6 +56,21 @@ test "multibyte text is preserved around replacements" {
 }
 
 ///|
+test "surrogate-pair char is preserved around replacements" {
+  @test.assert_eq(rep("o", "0", "f😀oo"), "f😀00")
+}
+
+///|
+test "zero-width match interleaves correctly across surrogate pairs" {
+  @test.assert_eq(rep("x*", "-", "a😀b"), "-a-😀-b-")
+}
+
+///|
+test "surrogate-pair capture is expanded intact" {
+  @test.assert_eq(rep("(😀+)", "[$1]", "x😀😀y"), "x[😀😀]y")
+}
+
+///|
 test "lone trailing dollar is literal" {
   @test.assert_eq(rep("a", "$", "a"), "$")
 }
