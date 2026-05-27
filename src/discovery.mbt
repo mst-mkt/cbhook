@@ -53,7 +53,7 @@ fn default_config_file(dir : String, pkl_exists : Bool) -> String {
 }
 
 ///|
-async fn require_config_path(explicit : String?) -> String raise {
+async fn require_config_path(explicit : String?) -> String {
   match discover_config_path(explicit) {
     Some(p) => p
     None =>

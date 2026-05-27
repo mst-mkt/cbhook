@@ -3,11 +3,14 @@ extern "c" fn c_exit(code : Int) -> Unit = "exit"
 
 // MoonBit's `fail()` (used by admiral for usage errors) prefixes the message
 // with "<loc> FAILED: "; strip it so those errors print cleanly.
+
 ///|
 fn after_fail_marker(m : String) -> String {
   match m.split(" FAILED: ").to_array() {
     [_loc, first, .. rest] =>
-      rest.fold(init=first.to_owned(), fn(acc, p) { acc + " FAILED: " + p.to_owned() })
+      rest.fold(init=first.to_owned(), fn(acc, p) {
+        acc + " FAILED: " + p.to_owned()
+      })
     _ => m
   }
 }
@@ -25,7 +28,11 @@ fn error_message(e : Error) -> String {
 ///|
 fn std_options() -> Array[@admiral.OptionDef] {
   [
-    @admiral.string("config", short='c', description="Path to the config file (.json|.pkl)"),
+    @admiral.string(
+      "config",
+      short='c',
+      description="Path to the config file (.json|.pkl)",
+    ),
     @admiral.bool("verbose", short='v', description="Verbose (debug) logging"),
     @admiral.bool("quiet", short='q', description="Quiet (warnings only)"),
   ]
@@ -35,16 +42,16 @@ fn std_options() -> Array[@admiral.OptionDef] {
 // admiral's `run` callbacks are synchronous, so a command records its async
 // body in this slot; `main` runs it once the event loop is available.
 fn set_command(
-  slot : Ref[(async () -> Unit raise)?],
+  slot : Ref[(async () -> Unit)?],
   ctx : @admiral.Context,
-  body : async () -> Unit raise,
+  body : async () -> Unit,
 ) -> Unit {
   set_flag_level(ctx.get_bool("verbose"), ctx.get_bool("quiet"))
   slot.val = Some(body)
 }
 
 ///|
-fn build_cli(slot : Ref[(async () -> Unit raise)?]) -> @admiral.CliApp {
+fn build_cli(slot : Ref[(async () -> Unit)?]) -> @admiral.CliApp {
   @admiral.cli(
     name="cbhook",
     version="0.1.0",
@@ -77,10 +84,9 @@ fn build_cli(slot : Ref[(async () -> Unit raise)?]) -> @admiral.CliApp {
           ),
         ],
         run=Some(fn(ctx) {
-          set_command(slot, ctx, () => evaluate(
-            ctx.get_strings("text"),
-            ctx.get_string("config"),
-          ))
+          set_command(slot, ctx, () => {
+            evaluate(ctx.get_strings("text"), ctx.get_string("config"))
+          })
         }),
       ),
       @admiral.command(
@@ -97,7 +103,9 @@ fn build_cli(slot : Ref[(async () -> Unit raise)?]) -> @admiral.CliApp {
             description="Install a systemd user unit (Linux) or launchd agent (macOS).",
             options=std_options(),
             run=Some(fn(ctx) {
-              set_command(slot, ctx, () => service_install(ctx.get_string("config")))
+              set_command(slot, ctx, () => {
+                service_install(ctx.get_string("config"))
+              })
             }),
           ),
         ],
@@ -114,12 +122,12 @@ async fn fail_exit(e : Error) -> Unit {
 
 ///|
 async fn main {
-  let slot : Ref[(async () -> Unit raise)?] = { val: None }
-  try build_cli(slot).run() catch {
+  let slot : Ref[(async () -> Unit)?] = { val: None }
+  build_cli(slot).run() catch {
     e => fail_exit(e)
   }
   match slot.val {
-    Some(run_command) => try run_command() catch { e => fail_exit(e) }
+    Some(run_command) => run_command() catch { e => fail_exit(e) }
     None => ()
   }
 }

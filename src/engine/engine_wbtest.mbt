@@ -1,5 +1,5 @@
 ///|
-async fn run_cfg(json : String, text : String) -> String raise {
+async fn run_cfg(json : String, text : String) -> String {
   compile(@config.parse(json)).run(text)
 }
 

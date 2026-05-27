@@ -1,9 +1,11 @@
 ///|
 fn on_error_schema() -> Schema[OnError] {
-  enum_schema(["skip", "abort"], s => match s {
-    "skip" => Some(Skip)
-    "abort" => Some(Abort)
-    _ => None
+  enum_schema(["skip", "abort"], s => {
+    match s {
+      "skip" => Some(Skip)
+      "abort" => Some(Abort)
+      _ => None
+    }
   })
 }
 
@@ -22,7 +24,9 @@ fn action_schema() -> Schema[Action] {
       "replace",
       pure(fn(_t) {
         fn(pattern) {
-          fn(replacement) { fn(flags) { Replace(pattern~, replacement~, flags~) } }
+          fn(replacement) {
+            fn(flags) { Replace(pattern~, replacement~, flags~) }
+          }
         }
       })
       .apply(const_field("type", "replace"))
@@ -81,11 +85,13 @@ fn hook_schema() -> Schema[Hook] {
 
 ///|
 fn log_level_schema() -> Schema[LogLevel] {
-  enum_schema(["debug", "info", "warn"], s => match s {
-    "debug" => Some(Debug)
-    "info" => Some(Info)
-    "warn" => Some(Warn)
-    _ => None
+  enum_schema(["debug", "info", "warn"], s => {
+    match s {
+      "debug" => Some(Debug)
+      "info" => Some(Info)
+      "warn" => Some(Warn)
+      _ => None
+    }
   })
 }
 

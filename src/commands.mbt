@@ -1,5 +1,5 @@
 ///|
-async fn check(config : String?) -> Unit raise {
+async fn check(config : String?) -> Unit {
   let compiled = load_compiled(config)
   log_notices(compiled.notices()[:])
   log_info("config is valid")
@@ -14,7 +14,7 @@ fn positional_text(parts : Array[String]) -> String? {
 }
 
 ///|
-async fn evaluate(args : Array[String], config : String?) -> Unit raise {
+async fn evaluate(args : Array[String], config : String?) -> Unit {
   let input = match positional_text(args) {
     Some(t) => t
     None => @stdio.stdin.read_all().text()

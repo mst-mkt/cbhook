@@ -23,6 +23,10 @@ test "errs extracts the error list, empty for Ok" {
 test "sequence collects values or accumulates every error" {
   let all_ok : Array[Result[Int, Array[String]]] = [Ok(1), Ok(2), Ok(3)]
   @test.assert_eq(sequence(all_ok), Ok([1, 2, 3]))
-  let mixed : Array[Result[Int, Array[String]]] = [Ok(1), Err(["a"]), Err(["b"])]
+  let mixed : Array[Result[Int, Array[String]]] = [
+    Ok(1),
+    Err(["a"]),
+    Err(["b"]),
+  ]
   @test.assert_eq(sequence(mixed), Err(["a", "b"]))
 }

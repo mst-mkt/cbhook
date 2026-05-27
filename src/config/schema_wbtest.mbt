@@ -25,19 +25,16 @@ fn assert_json(actual : Json, expected : Json) -> Unit raise {
 test "minimal replace hook decodes to the expected Config" {
   let src =
     #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": "b" } } ] }
-  @test.assert_eq(
-    parse(src),
-    Config::{
-      hooks: [
-        Hook::{
-          name: None,
-          matcher: None,
-          action: Replace(pattern="a", replacement="b", flags=None),
-        },
-      ],
-      log_level: None,
-    },
-  )
+  @test.assert_eq(parse(src), Config::{
+    hooks: [
+      Hook::{
+        name: None,
+        matcher: None,
+        action: Replace(pattern="a", replacement="b", flags=None),
+      },
+    ],
+    log_level: None,
+  })
 }
 
 ///|
@@ -240,7 +237,10 @@ test "replace pattern must be a string" {
 test "replace with unknown field" {
   let src =
     #|{ "hooks": [ { "action": { "type": "replace", "pattern": "a", "replacement": "b", "g": true } } ] }
-  @test.assert_eq(decode_err(src), "config.hooks[0].action: unknown field \"g\"")
+  @test.assert_eq(
+    decode_err(src),
+    "config.hooks[0].action: unknown field \"g\"",
+  )
 }
 
 ///|
@@ -379,7 +379,10 @@ test "unknown field and missing action reported together" {
 test "matcher with unknown field" {
   let src =
     #|{ "hooks": [ { "match": { "pattern": "a", "extra": 1 }, "action": { "type": "exec", "run": ["x"] } } ] }
-  @test.assert_eq(decode_err(src), "config.hooks[0].match: unknown field \"extra\"")
+  @test.assert_eq(
+    decode_err(src),
+    "config.hooks[0].match: unknown field \"extra\"",
+  )
 }
 
 ///|

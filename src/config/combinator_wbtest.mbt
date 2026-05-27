@@ -22,12 +22,15 @@ test "string_schema" {
 test "int_schema without minimum" {
   @test.assert_eq(dec(int_schema(), (3).to_json()), Ok(3))
   @test.assert_eq(
-    dec(int_schema(), (1.5).to_json()),
+    dec(int_schema(), 1.5.to_json()),
     Err(["$: expected an integer"]),
   )
-  @test.assert_eq(dec(int_schema(), "x".to_json()), Err(["$: expected a number"]))
   @test.assert_eq(
-    dec(int_schema(), (1.0e12).to_json()),
+    dec(int_schema(), "x".to_json()),
+    Err(["$: expected a number"]),
+  )
+  @test.assert_eq(
+    dec(int_schema(), 1.0e12.to_json()),
     Err(["$: expected an integer"]),
   )
   assert_json(sch(int_schema()), @json.parse("{ \"type\": \"integer\" }"))
@@ -49,17 +52,19 @@ test "int_schema with minimum" {
 ///|
 test "int_schema accumulates non-integer and minimum errors together" {
   @test.assert_eq(
-    dec(int_schema(minimum=5), (2.5).to_json()),
+    dec(int_schema(minimum=5), 2.5.to_json()),
     Err(["$: expected an integer", "$: expected >= 5"]),
   )
 }
 
 ///|
 test "enum_schema" {
-  let s = enum_schema(["a", "b"], v => match v {
-    "a" => Some(1)
-    "b" => Some(2)
-    _ => None
+  let s = enum_schema(["a", "b"], v => {
+    match v {
+      "a" => Some(1)
+      "b" => Some(2)
+      _ => None
+    }
   })
   @test.assert_eq(dec(s, "b".to_json()), Ok(2))
   @test.assert_eq(
@@ -134,17 +139,17 @@ test "build decodes an object and accumulates field errors" {
     .apply(required_field("a", string_schema()))
     .apply(required_field("b", int_schema()))
     .build()
-  @test.assert_eq(dec(s, @json.parse("{ \"a\": \"x\", \"b\": 3 }")), Ok(("x", 3)))
+  @test.assert_eq(
+    dec(s, @json.parse("{ \"a\": \"x\", \"b\": 3 }")),
+    Ok(("x", 3)),
+  )
   @test.assert_eq(
     dec(s, @json.parse("{ \"a\": 1, \"b\": \"y\" }")),
     Err(["$.a: expected a string", "$.b: expected a number"]),
   )
   @test.assert_eq(
     dec(s, @json.parse("{}")),
-    Err([
-      "$: missing required field \"a\"",
-      "$: missing required field \"b\"",
-    ]),
+    Err(["$: missing required field \"a\"", "$: missing required field \"b\""]),
   )
   @test.assert_eq(
     dec(s, @json.parse("{ \"a\": \"x\", \"b\": 3, \"c\": 9 }")),

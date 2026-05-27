@@ -1,7 +1,7 @@
 ///|
-async fn load_compiled(config : String?) -> @engine.Compiled raise {
+async fn load_compiled(config : String?) -> @engine.Compiled {
   let path = require_config_path(config)
-  let source = try @fs.read_file(path).text() catch {
+  let source = @fs.read_file(path).text() catch {
     _ => raise @config.ConfigError("cannot read config file: \{path}")
   }
   let cfg = @config.parse_file(path, source)

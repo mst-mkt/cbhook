@@ -54,9 +54,11 @@ fn unknown_errors(
 ///|
 fn string_schema() -> Schema[String] {
   {
-    decode: (json, ctx) => match json {
-      String(s) => Ok(s)
-      _ => Err(["\{ctx}: expected a string"])
+    decode: (json, ctx) => {
+      match json {
+        String(s) => Ok(s)
+        _ => Err(["\{ctx}: expected a string"])
+      }
     },
     to_schema: () => jobj([("type", "string".to_json())]),
   }
@@ -65,24 +67,30 @@ fn string_schema() -> Schema[String] {
 ///|
 fn int_schema(minimum? : Int) -> Schema[Int] {
   {
-    decode: (json, ctx) => match json {
-      Number(n, ..) => {
-        let i = n.to_int()
-        let es = combine([
-          if i.to_double() != n { ["\{ctx}: expected an integer"] } else { [] },
-          if minimum is Some(min) && i < min {
-            ["\{ctx}: expected >= \{min}"]
+    decode: (json, ctx) => {
+      match json {
+        Number(n, ..) => {
+          let i = n.to_int()
+          let es = combine([
+            if i.to_double() != n {
+              ["\{ctx}: expected an integer"]
+            } else {
+              []
+            },
+            if minimum is Some(min) && i < min {
+              ["\{ctx}: expected >= \{min}"]
+            } else {
+              []
+            },
+          ])
+          if es.is_empty() {
+            Ok(i)
           } else {
-            []
-          },
-        ])
-        if es.is_empty() {
-          Ok(i)
-        } else {
-          Err(es)
+            Err(es)
+          }
         }
+        _ => Err(["\{ctx}: expected a number"])
       }
-      _ => Err(["\{ctx}: expected a number"])
     },
     to_schema: () => {
       let base : Array[(String, Json)] = [("type", "integer".to_json())]
@@ -97,38 +105,42 @@ fn int_schema(minimum? : Int) -> Schema[Int] {
 ///|
 fn[T] enum_schema(choices : Array[String], of : (String) -> T?) -> Schema[T] {
   {
-    decode: (json, ctx) => match json {
-      String(s) =>
-        match of(s) {
-          Some(v) => Ok(v)
-          None =>
-            Err([
-              "\{ctx}: expected one of \{join_with(choices, ", ")}, got \"\{s}\"",
-            ])
-        }
-      _ => Err(["\{ctx}: expected a string"])
+    decode: (json, ctx) => {
+      match json {
+        String(s) =>
+          match of(s) {
+            Some(v) => Ok(v)
+            None =>
+              Err([
+                "\{ctx}: expected one of \{join_with(choices, ", ")}, got \"\{s}\"",
+              ])
+          }
+        _ => Err(["\{ctx}: expected a string"])
+      }
     },
     to_schema: () => jobj([("enum", choices.to_json())]),
   }
 }
 
 ///|
-fn[T] array_schema(item : Schema[T], min_items~ : Int = 0) -> Schema[Array[T]] {
+fn[T] array_schema(item : Schema[T], min_items? : Int = 0) -> Schema[Array[T]] {
   {
-    decode: (json, ctx) => match json {
-      Array(a) => {
-        let min_err = if a.length() < min_items {
-          ["\{ctx}: expected at least \{min_items} item(s)"]
-        } else {
-          []
+    decode: (json, ctx) => {
+      match json {
+        Array(a) => {
+          let min_err = if a.length() < min_items {
+            ["\{ctx}: expected at least \{min_items} item(s)"]
+          } else {
+            []
+          }
+          let results = a.mapi((i, j) => (item.decode)(j, "\{ctx}[\{i}]"))
+          match sequence(results) {
+            Ok(vs) if min_err.is_empty() => Ok(vs)
+            r => Err(combine([min_err, errs(r)]))
+          }
         }
-        let results = a.mapi((i, j) => (item.decode)(j, "\{ctx}[\{i}]"))
-        match sequence(results) {
-          Ok(vs) if min_err.is_empty() => Ok(vs)
-          r => Err(combine([min_err, errs(r)]))
-        }
+        _ => Err(["\{ctx}: expected an array"])
       }
-      _ => Err(["\{ctx}: expected an array"])
     },
     to_schema: () => {
       let base : Array[(String, Json)] = [
@@ -150,9 +162,11 @@ fn[T] required_field(name : String, schema : Schema[T]) -> Field[T] {
     name,
     required: true,
     prop_schema: schema.to_schema,
-    extract: (obj, ctx) => match obj.get(name) {
-      Some(j) => (schema.decode)(j, "\{ctx}.\{name}")
-      None => Err(["\{ctx}: missing required field \"\{name}\""])
+    extract: (obj, ctx) => {
+      match obj.get(name) {
+        Some(j) => (schema.decode)(j, "\{ctx}.\{name}")
+        None => Err(["\{ctx}: missing required field \"\{name}\""])
+      }
     },
   }
 }
@@ -163,9 +177,11 @@ fn[T] optional_field(name : String, schema : Schema[T]) -> Field[T?] {
     name,
     required: false,
     prop_schema: schema.to_schema,
-    extract: (obj, ctx) => match obj.get(name) {
-      Some(j) => (schema.decode)(j, "\{ctx}.\{name}").map(v => Some(v))
-      None => Ok(None)
+    extract: (obj, ctx) => {
+      match obj.get(name) {
+        Some(j) => (schema.decode)(j, "\{ctx}.\{name}").map(v => Some(v))
+        None => Ok(None)
+      }
     },
   }
 }
@@ -176,15 +192,17 @@ fn const_field(name : String, value : String) -> Field[Unit] {
     name,
     required: true,
     prop_schema: () => jobj([("const", value.to_json())]),
-    extract: (obj, ctx) => match obj.get(name) {
-      Some(String(s)) =>
-        if s == value {
-          Ok(())
-        } else {
-          Err(["\{ctx}.\{name}: expected \"\{value}\", got \"\{s}\""])
-        }
-      Some(_) => Err(["\{ctx}.\{name}: expected \"\{value}\""])
-      None => Err(["\{ctx}: missing required field \"\{name}\""])
+    extract: (obj, ctx) => {
+      match obj.get(name) {
+        Some(String(s)) =>
+          if s == value {
+            Ok(())
+          } else {
+            Err(["\{ctx}.\{name}: expected \"\{value}\", got \"\{s}\""])
+          }
+        Some(_) => Err(["\{ctx}.\{name}: expected \"\{value}\""])
+        None => Err(["\{ctx}: missing required field \"\{name}\""])
+      }
     },
   }
 }
@@ -227,14 +245,16 @@ fn[A, B] ObjSchema::apply(
 ///|
 fn[T] ObjSchema::build(self : ObjSchema[T]) -> Schema[T] {
   {
-    decode: (json, ctx) => match expect_object(json, ctx) {
-      Err(e) => Err(e)
-      Ok(obj) => {
-        let names = self.fields.map(fn(f) { f.0 })
-        let unknown = unknown_errors(obj, names, ctx)
-        match (self.decode)(obj, ctx) {
-          Ok(v) if unknown.is_empty() => Ok(v)
-          r => Err(combine([unknown, errs(r)]))
+    decode: (json, ctx) => {
+      match expect_object(json, ctx) {
+        Err(e) => Err(e)
+        Ok(obj) => {
+          let names = self.fields.map(fn(f) { f.0 })
+          let unknown = unknown_errors(obj, names, ctx)
+          match (self.decode)(obj, ctx) {
+            Ok(v) if unknown.is_empty() => Ok(v)
+            r => Err(combine([unknown, errs(r)]))
+          }
         }
       }
     },
@@ -245,29 +265,32 @@ fn[T] ObjSchema::build(self : ObjSchema[T]) -> Schema[T] {
 ///|
 fn[T] tagged(tag : String, variants : Array[(String, Schema[T])]) -> Schema[T] {
   {
-    decode: (json, ctx) => match expect_object(json, ctx) {
-      Err(e) => Err(e)
-      Ok(obj) =>
-        match obj.get(tag) {
-          Some(String(s)) => {
-            let matched : Schema[T]? = variants
-              .search_by(v => v.0 == s)
-              .map(i => variants[i].1)
-            match matched {
-              Some(variant) => (variant.decode)(json, ctx)
-              None => {
-                let known = variants.map(fn(v) { v.0 })
-                Err([
-                  "\{ctx}.\{tag}: unknown value \"\{s}\" (expected one of \{join_with(known, ", ")})",
-                ])
+    decode: (json, ctx) => {
+      match expect_object(json, ctx) {
+        Err(e) => Err(e)
+        Ok(obj) =>
+          match obj.get(tag) {
+            Some(String(s)) => {
+              let matched : Schema[T]? = variants
+                .search_by(v => v.0 == s)
+                .map(i => variants[i].1)
+              match matched {
+                Some(variant) => (variant.decode)(json, ctx)
+                None => {
+                  let known = variants.map(fn(v) { v.0 })
+                  Err([
+                    "\{ctx}.\{tag}: unknown value \"\{s}\" (expected one of \{join_with(known, ", ")})",
+                  ])
+                }
               }
             }
+            Some(_) => Err(["\{ctx}.\{tag}: expected a string"])
+            None => Err(["\{ctx}: missing required field \"\{tag}\""])
           }
-          Some(_) => Err(["\{ctx}.\{tag}: expected a string"])
-          None => Err(["\{ctx}: missing required field \"\{tag}\""])
-        }
+      }
     },
-    to_schema: () =>
-      jobj([("oneOf", variants.map(fn(v) { (v.1.to_schema)() }).to_json())]),
+    to_schema: () => {
+      jobj([("oneOf", variants.map(fn(v) { (v.1.to_schema)() }).to_json())])
+    },
   }
 }

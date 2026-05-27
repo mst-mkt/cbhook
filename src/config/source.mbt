@@ -11,6 +11,7 @@ fn diag_messages(diags : Array[@pkl.Diagnostic]) -> String {
 // pkl evaluates with full host access (e.g. `read("env:…")`) by design; this
 // is intentionally not sandboxed since a cbhook config can already run
 // arbitrary commands via its exec/pipe actions, so it is trusted regardless.
+
 ///|
 fn pkl_to_json(source : String) -> String raise {
   match @pkl.eval_source(source) {

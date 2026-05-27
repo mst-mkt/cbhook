@@ -3,7 +3,7 @@ async fn decide(
   last_written : String?,
   text : String,
   compiled : @engine.Compiled,
-) -> String? raise {
+) -> String? {
   if last_written == Some(text) {
     None
   } else {
@@ -31,7 +31,7 @@ async fn run_pipeline(
   text : String,
 ) -> Unit {
   log_debug("clipboard changed; applying hooks")
-  let result = try decide(last_written.val, text, compiled) catch {
+  let result = decide(last_written.val, text, compiled) catch {
     e => {
       log_warn("hook failed: \{error_message(e)}")
       None
@@ -56,6 +56,7 @@ async fn run_pipeline(
 
 // Single-flight, latest-wins. The callback's set-pending/check-running and
 // drain's read-pending/clear-running are await-free, so they never interleave.
+
 ///|
 async fn drain(
   clipboard : @clipboard.Clipboard,
@@ -74,33 +75,27 @@ async fn drain(
 }
 
 ///|
-async fn watch(config : String?) -> Unit raise {
+async fn watch(config : String?) -> Unit {
   let compiled = load_compiled(config)
   log_notices(compiled.notices()[:])
   @signal.set_global_cancellation_signals([@signal.SIGINT, @signal.SIGTERM])
   log_info("watching clipboard (Ctrl-C to stop)")
-  try
-    @async.with_task_group(group => {
-      let clipboard = @clipboard.Clipboard::new()
-      let last_written : Ref[String?] = { val: None }
-      let pending : Ref[String?] = { val: None }
-      let running : Ref[Bool] = { val: false }
-      clipboard.watch(group, (text) => {
-        pending.val = Some(text)
-        if !running.val {
-          running.val = true
-          group.spawn_bg(() => drain(
-            clipboard,
-            compiled,
-            last_written,
-            pending,
-            running,
-          ))
-        }
-      })
-      |> ignore
+  @async.with_task_group(group => {
+    let clipboard = @clipboard.Clipboard::new()
+    let last_written : Ref[String?] = { val: None }
+    let pending : Ref[String?] = { val: None }
+    let running : Ref[Bool] = { val: false }
+    clipboard.watch(group, text => {
+      pending.val = Some(text)
+      if !running.val {
+        running.val = true
+        group.spawn_bg(() => {
+          drain(clipboard, compiled, last_written, pending, running)
+        })
+      }
     })
-  catch {
+    |> ignore
+  }) catch {
     e =>
       if @async.is_cancellation_error(e) {
         log_info("stopped")

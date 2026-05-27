@@ -8,14 +8,14 @@ async fn capture(
   cmd : String,
   args : ArrayView[String],
   input : String,
-) -> (Int, String) raise {
+) -> (Int, String) {
   @async.with_task_group(group => {
     let (child_stdin, parent_write) = @process.write_to_process()
     // Feed stdin from a detached task: a command that exits without draining
     // stdin (or a payload larger than the pipe buffer) must not block the read.
     group.spawn_bg(no_wait=true, () => {
       defer parent_write.close()
-      try parent_write.write(@utf8.encode(input)) catch {
+      parent_write.write(@utf8.encode(input)) catch {
         _ => ()
       }
     })
@@ -25,7 +25,7 @@ async fn capture(
 }
 
 ///|
-async fn run_capture(run : ArrayView[String], input : String) -> String raise {
+async fn run_capture(run : ArrayView[String], input : String) -> String {
   match run {
     [] => raise ActionError("empty command")
     [cmd, .. args] => {
@@ -39,11 +39,11 @@ async fn run_capture(run : ArrayView[String], input : String) -> String raise {
 }
 
 ///|
-pub async fn run_pipe(run : ArrayView[String], input : String) -> String raise {
+pub async fn run_pipe(run : ArrayView[String], input : String) -> String {
   run_capture(run, input)
 }
 
 ///|
-pub async fn run_exec(run : ArrayView[String], input : String) -> Unit raise {
+pub async fn run_exec(run : ArrayView[String], input : String) -> Unit {
   run_capture(run, input) |> ignore
 }

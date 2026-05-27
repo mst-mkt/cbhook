@@ -13,11 +13,7 @@ test "error_message extracts the ConfigError payload" {
 
 ///|
 test "error_message unwraps a Failure without the type prefix" {
-  let msg = try {
-    fail("boom")
-  } catch {
-    e => error_message(e)
-  }
+  let msg = fail("boom") catch { e => error_message(e) }
   @test.assert_eq(msg, "boom")
 }
 
