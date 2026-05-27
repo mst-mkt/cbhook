@@ -54,7 +54,7 @@ fn set_command(
 fn build_cli(slot : Ref[(async () -> Unit)?]) -> @admiral.CliApp {
   @admiral.cli(
     name="cbhook",
-    version="0.1.0",
+    version="0.1.1",
     description="Watch the clipboard and transform it with hooks.",
     commands=[
       @admiral.command(
