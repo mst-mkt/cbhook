@@ -1,3 +1,9 @@
+## 0.1.2 (2026-08-15)
+
+### Fixes
+
+- replace deprecated stdenv.isLinux, stdenv.isDarwin with hostPlatform
+
 ## 0.1.1 (2026-05-27)
 
 ### Features
