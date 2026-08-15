@@ -149,7 +149,7 @@ in
         xdg.configFile."cbhook/config.json".source = configFile;
       }
 
-      (lib.mkIf pkgs.stdenv.isLinux {
+      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
         systemd.user.services.cbhook = {
           Unit = {
             Description = "cbhook clipboard watcher";
@@ -168,7 +168,7 @@ in
         };
       })
 
-      (lib.mkIf pkgs.stdenv.isDarwin {
+      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
         launchd.agents.cbhook = {
           enable = true;
           config = {
