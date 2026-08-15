@@ -1,6 +1,6 @@
 {
   "name": "mst-mkt/cbhook",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "deps": {
     "moonbitlang/async": "0.19.1",
     "mst-mkt/clipboard": "0.1.1",
